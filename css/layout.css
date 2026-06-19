@@ -1,8 +1,10 @@
 /* =============================================================
-   LAYOUT (SIDEBAR + CONTENIDO)
+   LAYOUT (PC: menú lateral · CELULAR: barras arriba y abajo)
    -------------------------------------------------------------
-   Estructura general de las páginas privadas: barra lateral
-   fija en escritorio y deslizable en celular.
+   - En PC se muestra el menú lateral (sidebar).
+   - En celular se ocultan el sidebar y se muestran:
+       · una barra superior simple (nombre + Salir)
+       · una barra de botones grande abajo (navegación tipo app)
    ============================================================= */
 
 .app-shell {
@@ -10,7 +12,7 @@
   min-height: 100vh;
 }
 
-/* ---------- SIDEBAR ---------- */
+/* ---------- SIDEBAR (solo PC) ---------- */
 .sidebar {
   width: var(--sidebar-width);
   background: var(--color-surface);
@@ -103,41 +105,81 @@
   max-width: 1100px;
 }
 
-/* ---------- MENÚ MÓVIL ---------- */
-.menu-toggle {
-  display: none;
+/* ---------- BARRA SUPERIOR Y BARRA INFERIOR (solo celular) ---------- */
+.topbar,
+.bottom-nav {
+  display: none; /* ocultas en PC */
+}
+
+.topbar {
   position: fixed;
-  top: 14px; left: 14px;
+  top: 0; left: 0; right: 0;
+  height: 58px;
+  background: var(--color-primary);
+  color: #fff;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
   z-index: 40;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  width: 44px; height: 44px;
-  font-size: 1.3rem;
-  cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
-
-.overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 25;
+.topbar-brand {
+  font-weight: 700;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.overlay.show { display: block; }
+.topbar-logout {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
 
-/* ---------- RESPONSIVE ---------- */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 74px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  z-index: 40;
+}
+.bottom-link {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--color-muted);
+  font-weight: 600;
+  padding-top: 6px;
+}
+.bottom-icon { font-size: 1.7rem; line-height: 1; }
+.bottom-text { font-size: 0.78rem; }
+.bottom-link.active {
+  color: var(--color-primary-dark);
+}
+.bottom-link.active .bottom-icon {
+  transform: translateY(-2px);
+  transition: transform 0.15s;
+}
+
+/* ---------- RESPONSIVE: pasar a modo celular ---------- */
 @media (max-width: 860px) {
-  .sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    box-shadow: var(--shadow-md);
-  }
-  .sidebar.open { transform: translateX(0); }
+  .sidebar { display: none; }          /* ocultamos el menú lateral */
+  .topbar { display: flex; }            /* mostramos barra superior */
+  .bottom-nav { display: flex; }        /* mostramos barra inferior */
+
   .content {
     margin-left: 0;
-    padding: 70px 18px 50px;
+    /* espacio para que el contenido no quede tapado por las barras */
+    padding: 74px 16px 92px;
+    max-width: 100%;
   }
-  .menu-toggle { display: block; }
 }

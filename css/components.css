@@ -93,10 +93,11 @@
 
 input, select, textarea {
   width: 100%;
-  padding: 11px 13px;
+  padding: 12px 13px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  font-size: 0.95rem;
+  /* 16px evita que el celular haga zoom automático al tocar el campo */
+  font-size: 16px;
   font-family: inherit;
   background: #fff;
   color: var(--color-text);
@@ -228,4 +229,104 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
   padding: 30px;
   color: var(--color-muted);
+}
+
+/* =============================================================
+   FORMULARIO AMABLE (pantalla "Ingresar Ganancias")
+   Pensado para que sea grande, claro y fácil de usar en celular.
+   ============================================================= */
+.form-amable {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.field-block {
+  margin-bottom: 22px;
+}
+.field-block > label {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.opcional {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+/* Texto amigable de la fecha ("Hoy · jueves 19 de junio de 2026") */
+.fecha-texto {
+  margin-top: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+}
+
+/* Recuadro del monto con el signo $ y el número grande */
+.money-input {
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.money-input.focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-primary-light);
+}
+.money-symbol {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  margin-right: 8px;
+}
+.money-input input {
+  border: none;
+  padding: 8px 0;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--color-text);
+  background: transparent;
+}
+.money-input input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.money-preview {
+  margin-top: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  min-height: 1.2em;
+}
+
+/* Botón grande de guardar */
+.btn-grande {
+  width: 100%;
+  font-size: 1.2rem;
+  padding: 16px;
+  border-radius: var(--radius-md);
+}
+
+/* Panel de confirmación luego de guardar */
+.success-panel {
+  text-align: center;
+  padding: 20px 10px;
+}
+.success-check {
+  font-size: 4rem;
+  line-height: 1;
+}
+.success-panel h2 {
+  font-size: 1.6rem;
+  color: var(--color-success);
+  margin: 10px 0;
+}
+.success-detalle {
+  font-size: 1.15rem;
+  margin-bottom: 24px;
+  line-height: 1.6;
 }

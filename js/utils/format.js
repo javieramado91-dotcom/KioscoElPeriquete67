@@ -36,6 +36,25 @@ export function fechaLegible(iso) {
 }
 
 /**
+ * Convierte "YYYY-MM-DD" a texto amigable: "jueves 19 de junio de 2026".
+ * Si la fecha es hoy, antepone "Hoy · ".
+ */
+export function fechaFriendly(iso) {
+  if (!iso) return "";
+  // Forzamos hora local para evitar el corrimiento de un día por UTC.
+  const fecha = new Date(iso + "T00:00:00");
+  let texto = fecha.toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  // Primera letra en mayúscula ("jueves..." -> "Jueves...").
+  texto = texto.charAt(0).toUpperCase() + texto.slice(1);
+  return iso === hoyISO() ? `Hoy · ${texto}` : texto;
+}
+
+/**
  * Devuelve el nombre del mes (0 = Enero).
  */
 export function nombreMes(indice) {

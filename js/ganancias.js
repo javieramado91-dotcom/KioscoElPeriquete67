@@ -1,14 +1,31 @@
 // =============================================================
 //  CONTROLADOR DEL MÓDULO "INGRESAR GANANCIAS"
 // -------------------------------------------------------------
-//  Formulario para registrar el dinero ingresado en un día.
-//  Valida, evita duplicados por fecha y muestra mensajes claros.
+//  Pensado para una persona poco tecnológica:
+//   - Lenguaje claro y preguntas simples ("¿Cuánto entró hoy?").
+//   - Número grande y teclado numérico automático en el celular.
+//   - Vista previa del monto formateado (para que vea bien la plata).
+//   - Al guardar, una confirmación grande y clara.
 // =============================================================
 
 import { protegerPagina } from "./utils/guards.js";
 import { montarLayout } from "./components/navbar.js";
 import { registrarGanancia } from "./services/ganancias.service.js";
-import { hoyISO, formatearMoneda } from "./utils/format.js";
+import { hoyISO, formatearMoneda, fechaFriendly } from "./utils/format.js";
+
+/**
+ * Convierte lo que escribe el usuario a un número.
+ * Acepta el formato argentino: el punto es separador de miles y la
+ * coma es el decimal.  Ej: "1.500,50" -> 1500.5  ·  "2000" -> 2000
+ */
+function parsearMonto(texto) {
+  if (!texto) return NaN;
+  const limpio = String(texto)
+    .replace(/\s/g, "")
+    .replace(/\./g, "")   // saca separadores de miles
+    .replace(",", ".");   // coma decimal -> punto
+  return Number(limpio);
+}
 
 (async function init() {
   const { user, perfil } = await protegerPagina();
@@ -16,36 +33,52 @@ import { hoyISO, formatearMoneda } from "./utils/format.js";
   const contenido = document.createElement("div");
   contenido.innerHTML = `
     <header class="page-header">
-      <h1>Ingresar ganancia diaria</h1>
-      <p class="muted">Registrá cuánto ingresó la despensa en el día.</p>
+      <h1>💵 Cargar la ganancia del día</h1>
+      <p class="muted">Anotá cuánta plata entró. Es muy fácil. 👇</p>
     </header>
 
-    <section class="form-card">
+    <section class="form-card form-amable">
       <form id="formGanancia" novalidate>
-        <div class="form-row">
-          <label for="fecha">Fecha</label>
+
+        <!-- FECHA -->
+        <div class="field-block">
+          <label for="fecha">📅 ¿De qué día?</label>
           <input type="date" id="fecha" required />
+          <div class="fecha-texto" id="fechaTexto"></div>
         </div>
 
-        <div class="form-row">
-          <label for="monto">Monto total del día</label>
-          <input type="number" id="monto" min="0" step="0.01"
-                 placeholder="0.00" required />
-          <small class="hint" id="montoPreview"></small>
+        <!-- MONTO -->
+        <div class="field-block">
+          <label for="monto">💰 ¿Cuánto entró?</label>
+          <div class="money-input" id="moneyBox">
+            <span class="money-symbol">$</span>
+            <input type="text" id="monto" inputmode="decimal"
+                   placeholder="0" autocomplete="off" />
+          </div>
+          <div class="money-preview" id="montoPreview"></div>
         </div>
 
-        <div class="form-row">
-          <label for="observacion">Observación (opcional)</label>
-          <textarea id="observacion" rows="3"
-                    placeholder="Ej: día de lluvia, feriado, etc."></textarea>
+        <!-- OBSERVACIÓN -->
+        <div class="field-block">
+          <label for="observacion">📝 ¿Querés anotar algo? <span class="opcional">(opcional)</span></label>
+          <textarea id="observacion" rows="2"
+                    placeholder="Ej: día tranquilo, mucha venta..."></textarea>
         </div>
 
         <div id="msg" class="message"></div>
 
-        <button type="submit" class="btn btn-primary btn-block" id="btnGuardar">
-          Guardar ganancia
+        <button type="submit" class="btn btn-primary btn-grande" id="btnGuardar">
+          ✅ Guardar
         </button>
       </form>
+
+      <!-- Panel de éxito (oculto hasta guardar) -->
+      <div class="success-panel" id="successPanel" hidden>
+        <div class="success-check">🎉</div>
+        <h2>¡Guardado!</h2>
+        <p class="success-detalle" id="successDetalle"></p>
+        <button class="btn btn-primary btn-grande" id="btnOtro">Cargar otro día</button>
+      </div>
     </section>
   `;
 
@@ -54,35 +87,51 @@ import { hoyISO, formatearMoneda } from "./utils/format.js";
   // --- Referencias ---
   const form = document.getElementById("formGanancia");
   const fecha = document.getElementById("fecha");
+  const fechaTexto = document.getElementById("fechaTexto");
   const monto = document.getElementById("monto");
+  const moneyBox = document.getElementById("moneyBox");
   const observacion = document.getElementById("observacion");
   const msg = document.getElementById("msg");
   const preview = document.getElementById("montoPreview");
   const btn = document.getElementById("btnGuardar");
+  const successPanel = document.getElementById("successPanel");
+  const successDetalle = document.getElementById("successDetalle");
+  const btnOtro = document.getElementById("btnOtro");
 
-  // Fecha de hoy por defecto.
+  // Fecha de hoy por defecto y no permitir fechas futuras.
   fecha.value = hoyISO();
-  fecha.max = hoyISO(); // no permitir fechas futuras
+  fecha.max = hoyISO();
 
-  // Vista previa del monto formateado.
+  function actualizarFechaTexto() {
+    fechaTexto.textContent = fechaFriendly(fecha.value);
+  }
+  actualizarFechaTexto();
+  fecha.addEventListener("change", actualizarFechaTexto);
+
+  // Vista previa grande del monto mientras escribe.
   monto.addEventListener("input", () => {
-    preview.textContent = monto.value ? formatearMoneda(monto.value) : "";
+    const n = parsearMonto(monto.value);
+    preview.textContent =
+      monto.value && !isNaN(n) ? "Vas a guardar: " + formatearMoneda(n) : "";
   });
+  // Resaltar el recuadro del monto al enfocarlo.
+  monto.addEventListener("focus", () => moneyBox.classList.add("focus"));
+  monto.addEventListener("blur", () => moneyBox.classList.remove("focus"));
 
   function mostrarMensaje(texto, tipo) {
     msg.textContent = texto;
     msg.className = `message message-${tipo}`;
   }
 
-  // --- Envío del formulario ---
+  // --- Guardar ---
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     mostrarMensaje("", "");
 
-    const valor = Number(monto.value);
-    if (!fecha.value) return mostrarMensaje("Elegí una fecha.", "error");
-    if (!valor || valor <= 0)
-      return mostrarMensaje("Ingresá un monto válido mayor a 0.", "error");
+    const valor = parsearMonto(monto.value);
+    if (!fecha.value) return mostrarMensaje("Primero elegí el día. 📅", "error");
+    if (isNaN(valor) || valor <= 0)
+      return mostrarMensaje("Escribí cuánta plata entró (un número mayor a 0). 💰", "error");
 
     btn.disabled = true;
     btn.textContent = "Guardando...";
@@ -94,19 +143,32 @@ import { hoyISO, formatearMoneda } from "./utils/format.js";
         observacion: observacion.value,
         uid: user.uid,
       });
-      mostrarMensaje(
-        `✅ Ganancia de ${formatearMoneda(valor)} guardada para el ${fecha.value}.`,
-        "success"
-      );
-      form.reset();
-      fecha.value = hoyISO();
-      preview.textContent = "";
+
+      // Mostramos la pantalla de éxito grande y clara.
+      successDetalle.innerHTML =
+        `Anotaste <strong>${formatearMoneda(valor)}</strong><br>del ${fechaFriendly(fecha.value)}.`;
+      form.hidden = true;
+      successPanel.hidden = false;
     } catch (err) {
-      // Incluye el caso de fecha duplicada.
+      // Caso típico: ya existe una ganancia para ese día.
       mostrarMensaje("⚠️ " + err.message, "error");
-    } finally {
       btn.disabled = false;
-      btn.textContent = "Guardar ganancia";
+      btn.textContent = "✅ Guardar";
     }
+  });
+
+  // --- "Cargar otro día": volver al formulario limpio ---
+  btnOtro.addEventListener("click", () => {
+    form.reset();
+    fecha.value = hoyISO();
+    fecha.max = hoyISO();
+    actualizarFechaTexto();
+    preview.textContent = "";
+    mostrarMensaje("", "");
+    btn.disabled = false;
+    btn.textContent = "✅ Guardar";
+    successPanel.hidden = true;
+    form.hidden = false;
+    monto.focus();
   });
 })();
