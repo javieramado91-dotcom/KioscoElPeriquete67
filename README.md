@@ -92,21 +92,14 @@ KIOSCO EL PERIQUETE/
 
    > El detalle está en [`firebase/estructura-firestore.md`](firebase/estructura-firestore.md).
 
-### 7. Ejecutar el sistema
-Como usa **ES Modules**, debe servirse por HTTP (no abrir el `.html` con doble clic).
-Opciones:
+### 7. Usar el sistema (online)
+El sistema vive en internet, no hace falta correr nada en la PC:
 
-```bash
-# Opción A: con Python (ya instalado en muchas PC)
-python -m http.server 5500
+- **App en producción:** <https://kiosco-el-periquete67.vercel.app>
+- **Código:** <https://github.com/javieramado91-dotcom/KioscoElPeriquete67>
 
-# Opción B: con Node
-npx serve
-
-# Opción C: extensión "Live Server" de VS Code → botón "Go Live"
-```
-
-Luego abrí <http://localhost:5500> e iniciá sesión.
+Cada vez que se sube un cambio a GitHub (`git push`), Vercel publica la
+nueva versión automáticamente en esa misma dirección.
 
 ---
 
