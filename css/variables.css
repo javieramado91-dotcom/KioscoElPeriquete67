@@ -1,0 +1,43 @@
+/* =============================================================
+   VARIABLES DE DISEÑO (DESIGN TOKENS)
+   -------------------------------------------------------------
+   Paleta, tipografía, sombras y radios centralizados.
+   Cambiar el aspecto de TODO el sistema desde un solo lugar.
+   ============================================================= */
+
+:root {
+  /* Colores de marca (verde despensa / fresco) */
+  --color-primary: #2e9e5b;
+  --color-primary-dark: #1f7a44;
+  --color-primary-light: #e7f6ed;
+
+  /* Neutros */
+  --color-bg: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-text: #1f2a37;
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
+
+  /* Estados */
+  --color-error: #dc2626;
+  --color-error-bg: #fde8e8;
+  --color-success: #15803d;
+  --color-success-bg: #e7f6ed;
+
+  /* Roles (badges) */
+  --color-admin: #7c3aed;
+  --color-usuario: #2563eb;
+
+  /* Tipografía */
+  --font-base: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+
+  /* Radios y sombras */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-md: 0 8px 24px rgba(16, 24, 40, 0.10);
+
+  /* Medidas */
+  --sidebar-width: 250px;
+}

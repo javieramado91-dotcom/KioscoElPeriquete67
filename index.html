@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>El Periquete · Iniciar sesión</title>
+
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/components.css" />
+
+  <!-- Mapa de imports: permite usar "firebase/app" en los módulos JS.
+       Si cambia la versión del SDK, se cambia solo acá. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+    }
+  }
+  </script>
+</head>
+<body class="login-page">
+  <main class="login-wrap">
+    <section class="login-card">
+      <div class="login-brand">
+        <div class="brand-logo big">🛒</div>
+        <h1>El Periquete</h1>
+        <p class="muted">Sistema de gestión de la despensa</p>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-row">
+          <label for="email">Correo electrónico</label>
+          <input type="email" id="email" autocomplete="username"
+                 placeholder="tucorreo@ejemplo.com" required />
+        </div>
+
+        <div class="form-row">
+          <label for="password">Contraseña</label>
+          <input type="password" id="password" autocomplete="current-password"
+                 placeholder="••••••••" required />
+        </div>
+
+        <div id="loginError" class="message message-error"></div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btnLogin">
+          Ingresar
+        </button>
+      </form>
+
+      <p class="login-foot muted">Acceso solo para usuarios autorizados.</p>
+    </section>
+  </main>
+
+  <script type="module" src="js/login.js"></script>
+</body>
+</html>

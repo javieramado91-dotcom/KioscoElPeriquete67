@@ -1,0 +1,14 @@
+# Archivos del sistema operativo / OneDrive
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+
+# Dependencias (por si en el futuro se usa Node)
+node_modules/
+
+# Logs
+*.log

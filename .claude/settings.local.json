@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__javascript_tool",
+      "PowerShell($py = \\(Get-Command python -ErrorAction SilentlyContinue\\); if \\($py\\) { \"python: \" + $py.Source; \\(python --version\\) } else { \"NO python\" }; $node = \\(Get-Command node -ErrorAction SilentlyContinue\\); if \\($node\\) { \"node: \" + $node.Source; \\(node --version\\) } else { \"NO node\" })",
+      "PowerShell(Start-Process powershell -ArgumentList '-NoExit','-ExecutionPolicy','Bypass','-File','\"C:\\\\Users\\\\pcjav\\\\OneDrive\\\\Escritorio\\\\SISTEMAS\\\\KIOSCO EL PERIQUETE\\\\servidor.ps1\"'; Start-Sleep -Seconds 2; try { \\(Invoke-WebRequest -Uri \"http://localhost:5500\" -UseBasicParsing -TimeoutSec 5\\).StatusCode } catch { \"ERROR: \" + $_.Exception.Message })",
+      "PowerShell(Start-Process \"http://localhost:5500\")",
+      "PowerShell(\"Abriendo http://localhost:5500 en el navegador predeterminado\")"
+    ]
+  }
+}

@@ -1,0 +1,95 @@
+rules_version = '2';
+
+// =============================================================
+//  FIREBASE SECURITY RULES · El Periquete
+// -------------------------------------------------------------
+//  Pegá este archivo COMPLETO en:
+//  Firebase Console > Firestore Database > Reglas > Publicar.
+//
+//  Principios:
+//   - Nadie sin sesión accede a nada (deny by default).
+//   - Solo admin elimina.
+//   - Usuarios comunes crean y leen ganancias.
+//   - Un usuario común solo edita ganancias creadas por él.
+//   - Se validan tipos de datos en escritura.
+// =============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ---------- FUNCIONES AUXILIARES ---------- */
+
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    // Lee el perfil del usuario actual desde la colección `usuarios`.
+    function datosUsuario() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function esAdmin() {
+      return estaAutenticado() && datosUsuario().rol == 'admin';
+    }
+
+    // Valida la forma y tipos de un documento de ganancia.
+    function gananciaValida(d) {
+      return d.fecha is string
+        && d.monto is number
+        && d.monto >= 0
+        && d.observacion is string
+        && d.creado_por is string
+        && d.fecha_creacion is timestamp;
+    }
+
+    /* ---------- COLECCIÓN: usuarios ---------- */
+    match /usuarios/{userId} {
+      // Cualquier autenticado puede leer perfiles (para mostrar nombres/roles).
+      allow read: if estaAutenticado();
+
+      // Un usuario solo puede crear SU propio perfil, con un rol válido.
+      allow create: if estaAutenticado()
+        && request.auth.uid == userId
+        && request.resource.data.rol in ['admin', 'usuario']
+        && request.resource.data.nombre is string
+        && request.resource.data.email is string;
+
+      // Admin edita cualquier perfil.
+      // Un usuario común puede editar su propio perfil, PERO no cambiarse el rol.
+      allow update: if esAdmin()
+        || (estaAutenticado()
+            && request.auth.uid == userId
+            && request.resource.data.rol == resource.data.rol);
+
+      // Solo admin elimina usuarios.
+      allow delete: if esAdmin();
+    }
+
+    /* ---------- COLECCIÓN: ganancias ---------- */
+    match /ganancias/{fecha} {
+      // Cualquier autenticado puede leer las ganancias.
+      allow read: if estaAutenticado();
+
+      // Crear: datos válidos y el creador debe ser el propio usuario.
+      allow create: if estaAutenticado()
+        && gananciaValida(request.resource.data)
+        && request.resource.data.creado_por == request.auth.uid;
+
+      // Editar: solo el creador del registro, sin poder cambiar el dueño.
+      allow update: if estaAutenticado()
+        && gananciaValida(request.resource.data)
+        && resource.data.creado_por == request.auth.uid
+        && request.resource.data.creado_por == resource.data.creado_por;
+
+      // Eliminar: solo admin.
+      allow delete: if esAdmin();
+    }
+
+    /* ---------- BLOQUEO POR DEFECTO ----------
+       Cualquier otra colección futura queda denegada hasta que
+       se le definan reglas explícitas. Protección total. */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
