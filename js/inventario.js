@@ -29,6 +29,7 @@ import { escanearCodigo } from "./components/scanner.js";
 import { formatearMoneda, parsearMonto } from "./utils/format.js";
 import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
 import { RUBROS } from "./utils/rubros.js";
+import { clasificarLocal } from "./utils/clasificador-local.js";
 
 (async function init() {
   const { user, perfil } = await protegerPagina();
@@ -473,19 +474,27 @@ import { RUBROS } from "./utils/rubros.js";
     // La IA se encarga de decidir si es perecedero (si todavía no se sabe,
     // por ejemplo en cargas manuales o por código de barras).
     if (!perecederoDeterminado) {
-      mostrarEstado("🤖 Analizando y catalogando el producto...");
-      try {
-        const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
-        const c = await clasificarProducto(texto);
-        perecedero.checked = c.perecedero;
-        rubroActual = c.rubro || "Otros";
-      } catch (_) {
-        perecedero.checked = false; // si la IA falla, no bloqueamos la carga
-        rubroActual = "Otros";
+      const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
+      // 1º intentamos GRATIS con el catalogador local (palabras clave).
+      const local = clasificarLocal(texto);
+      if (local) {
+        perecedero.checked = local.perecedero;
+        rubroActual = local.rubro;
+      } else {
+        // 2º si no lo reconoce, recurrimos a la IA (casos raros).
+        mostrarEstado("🤖 Catalogando el producto con IA...");
+        try {
+          const c = await clasificarProducto(texto);
+          perecedero.checked = c.perecedero;
+          rubroActual = c.rubro || "Otros";
+        } catch (_) {
+          perecedero.checked = false; // si la IA falla/sin cupo, no bloqueamos
+          rubroActual = "Otros";
+        }
+        mostrarEstado("");
       }
       perecederoDeterminado = true;
       bloqueVencimiento.hidden = !perecedero.checked;
-      mostrarEstado("");
     }
 
     // Si la IA dijo que es perecedero, la fecha de vencimiento es OBLIGATORIA.
