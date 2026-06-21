@@ -494,24 +494,63 @@ input:focus, select:focus, textarea:focus {
 .codigo-row input { flex: 1; min-width: 0; }
 .codigo-row .btn { white-space: nowrap; flex-shrink: 0; }
 
-/* Cartelito que pide escanear el código antes de guardar */
-.prompt-codigo {
+/* Modal lindo que pide escanear el código antes de guardar */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 32, 0.55);
+  backdrop-filter: blur(3px);
+  z-index: 120;
+  animation: modalFade 0.2s ease;
+}
+.modal-overlay.abierto { display: flex; }
+
+.modal-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 380px;
+  padding: 28px 24px 24px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.modal-icono {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  font-size: 2.2rem;
+  background: var(--color-primary-light);
+  border-radius: 50%;
+}
+.modal-titulo { font-size: 1.3rem; margin-bottom: 6px; }
+.modal-texto { color: var(--color-muted); margin-bottom: 16px; }
+.modal-consejo {
+  display: flex;
+  gap: 10px;
+  text-align: left;
   background: #fff8e6;
   border: 1px solid #f5d678;
   border-radius: var(--radius-md);
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
 }
-.prompt-codigo p {
-  margin-bottom: 12px;
-  font-size: 0.98rem;
+.modal-consejo-icono { font-size: 1.2rem; flex-shrink: 0; }
+.modal-acciones { display: flex; flex-direction: column; gap: 10px; }
+
+@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.prompt-acciones {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.prompt-acciones .btn { flex: 1; }
 
 /* En celular, los campos marca/detalle se apilan */
 @media (max-width: 520px) {

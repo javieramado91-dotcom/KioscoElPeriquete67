@@ -91,16 +91,6 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
           </div>
         </div>
 
-        <!-- Pedido de escaneo al guardar (si falta el código) -->
-        <div class="prompt-codigo" id="promptCodigo" hidden>
-          <p>📊 ¿Querés escanear el <strong>código de barras</strong> antes de guardar?
-          Es importante para buscar precios después.</p>
-          <div class="prompt-acciones">
-            <button type="button" class="btn btn-primary" id="btnPromptEscanear">📷 Escanear ahora</button>
-            <button type="button" class="btn btn-ghost" id="btnPromptOmitir">Guardar sin código</button>
-          </div>
-        </div>
-
         <div id="msg" class="message"></div>
 
         <button type="submit" class="btn btn-primary btn-grande" id="btnGuardar">
@@ -115,6 +105,24 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     </div>
     <section class="lista-productos" id="listaProductos"></section>
     <div id="listaVacia" class="empty-state" hidden>Todavía no cargaste productos.</div>
+
+    <!-- MODAL: pide escanear el código de barras al guardar -->
+    <div class="modal-overlay" id="modalCodigo">
+      <div class="modal-card">
+        <div class="modal-icono">📷</div>
+        <h2 class="modal-titulo">¿Escaneás el código de barras?</h2>
+        <p class="modal-texto">Antes de guardar, conviene sumarle el código a este producto.</p>
+        <div class="modal-consejo">
+          <span class="modal-consejo-icono">💡</span>
+          <span><strong>Es mucho más rápido:</strong> con el código cargado, después
+          encontrás el precio al instante — solo apuntás la cámara y aparece solo.</span>
+        </div>
+        <div class="modal-acciones">
+          <button type="button" class="btn btn-primary btn-grande" id="btnModalEscanear">📷 Escanear ahora</button>
+          <button type="button" class="btn btn-ghost" id="btnModalOmitir">Guardar sin código</button>
+        </div>
+      </div>
+    </div>
   `;
 
   montarLayout({ activo: "inventario", perfil, contenido });
@@ -130,9 +138,9 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   const btnEscanear = document.getElementById("btnEscanear");
   const precio = document.getElementById("precio");
   const moneyBox = document.getElementById("moneyBox");
-  const promptCodigo = document.getElementById("promptCodigo");
-  const btnPromptEscanear = document.getElementById("btnPromptEscanear");
-  const btnPromptOmitir = document.getElementById("btnPromptOmitir");
+  const modalCodigo = document.getElementById("modalCodigo");
+  const btnModalEscanear = document.getElementById("btnModalEscanear");
+  const btnModalOmitir = document.getElementById("btnModalOmitir");
   const msg = document.getElementById("msg");
   const btn = document.getElementById("btnGuardar");
   const buscador = document.getElementById("buscador");
@@ -152,10 +160,16 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     estado.innerHTML = texto ? `<span class="spinner"></span> ${texto}` : "";
     estado.style.display = texto ? "flex" : "none";
   }
+  function abrirModalCodigo() {
+    modalCodigo.classList.add("abierto");
+  }
+  function cerrarModalCodigo() {
+    modalCodigo.classList.remove("abierto");
+  }
   function limpiarFormulario() {
     form.reset();
     codigoBarras.value = "";
-    promptCodigo.hidden = true;
+    cerrarModalCodigo();
     omitirCodigo = false;
   }
   precio.addEventListener("focus", () => moneyBox.classList.add("focus"));
@@ -168,7 +182,7 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
 
   function elegirMetodo(metodo) {
     mostrarMensaje("", "");
-    promptCodigo.hidden = true;
+    cerrarModalCodigo();
     if (metodo === "manual") {
       limpiarFormulario();
       nombre.focus();
@@ -213,7 +227,7 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     if (!codigo) return;
 
     codigoBarras.value = codigo;
-    promptCodigo.hidden = true; // ya tiene código, no hace falta pedirlo
+    cerrarModalCodigo(); // ya tiene código, no hace falta pedirlo
 
     // Solo buscamos en el catálogo si el producto todavía no tiene nombre
     // (para no pisar lo que ya completó la foto o el usuario).
@@ -239,14 +253,18 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   }
 
   // ---------- Pedido de escaneo al guardar ----------
-  btnPromptEscanear.addEventListener("click", () => {
-    promptCodigo.hidden = true;
+  btnModalEscanear.addEventListener("click", () => {
+    cerrarModalCodigo();
     escanearYcompletar();
   });
-  btnPromptOmitir.addEventListener("click", () => {
+  btnModalOmitir.addEventListener("click", () => {
     omitirCodigo = true;
-    promptCodigo.hidden = true;
+    cerrarModalCodigo();
     form.requestSubmit(); // reintenta guardar, ahora sí sin código
+  });
+  // Tocar el fondo oscuro cierra el modal (sin guardar)
+  modalCodigo.addEventListener("click", (e) => {
+    if (e.target === modalCodigo) cerrarModalCodigo();
   });
 
   // ---------- Guardar ----------
@@ -259,10 +277,9 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     if (isNaN(valorPrecio) || valorPrecio < 0)
       return mostrarMensaje("Poné un precio válido. 💰", "error");
 
-    // Si falta el código de barras, lo pedimos (una vez).
+    // Si falta el código de barras, lo pedimos con el modal (una vez).
     if (!codigoBarras.value.trim() && !omitirCodigo) {
-      promptCodigo.hidden = false;
-      promptCodigo.scrollIntoView({ behavior: "smooth", block: "center" });
+      abrirModalCodigo();
       return;
     }
 
