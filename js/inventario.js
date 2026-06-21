@@ -26,6 +26,7 @@ import { identificarProductoPorFoto } from "./services/ia.service.js";
 import { buscarPorCodigoBarras } from "./services/catalogo.service.js";
 import { escanearCodigo } from "./components/scanner.js";
 import { formatearMoneda, parsearMonto } from "./utils/format.js";
+import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
 
 (async function init() {
   const { user, perfil } = await protegerPagina();
@@ -90,6 +91,17 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
             <span class="money-symbol">$</span>
             <input type="text" id="precio" inputmode="decimal" placeholder="0" autocomplete="off" />
           </div>
+        </div>
+
+        <div class="field-block">
+          <label class="switch-row">
+            <input type="checkbox" id="perecedero" />
+            <span>🗓️ Este producto vence (es perecedero)</span>
+          </label>
+        </div>
+        <div class="field-block" id="bloqueVencimiento" hidden>
+          <label for="fechaVencimiento">📅 Fecha de vencimiento</label>
+          <input type="date" id="fechaVencimiento" />
         </div>
 
         <div id="msg" class="message"></div>
@@ -161,6 +173,16 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
               <input type="text" id="editPrecio" inputmode="decimal" autocomplete="off" />
             </div>
           </div>
+          <div class="field-block">
+            <label class="switch-row">
+              <input type="checkbox" id="editPerecedero" />
+              <span>🗓️ Este producto vence (es perecedero)</span>
+            </label>
+          </div>
+          <div class="field-block" id="editBloqueVenc" hidden>
+            <label for="editFechaVenc">📅 Fecha de vencimiento</label>
+            <input type="date" id="editFechaVenc" />
+          </div>
           <div id="editMsg" class="message"></div>
           <div class="modal-acciones">
             <button type="submit" class="btn btn-primary btn-grande" id="btnEditarGuardar">💾 Guardar cambios</button>
@@ -184,6 +206,9 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   const btnEscanear = document.getElementById("btnEscanear");
   const precio = document.getElementById("precio");
   const moneyBox = document.getElementById("moneyBox");
+  const perecedero = document.getElementById("perecedero");
+  const bloqueVencimiento = document.getElementById("bloqueVencimiento");
+  const fechaVencimiento = document.getElementById("fechaVencimiento");
   const modalCodigo = document.getElementById("modalCodigo");
   const btnModalEscanear = document.getElementById("btnModalEscanear");
   const btnModalOmitir = document.getElementById("btnModalOmitir");
@@ -194,6 +219,9 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   const editCodigo = document.getElementById("editCodigo");
   const editPrecio = document.getElementById("editPrecio");
   const editMoneyBox = document.getElementById("editMoneyBox");
+  const editPerecedero = document.getElementById("editPerecedero");
+  const editBloqueVenc = document.getElementById("editBloqueVenc");
+  const editFechaVenc = document.getElementById("editFechaVenc");
   const editMsg = document.getElementById("editMsg");
   const formEditar = document.getElementById("formEditar");
   const btnEditarEscanear = document.getElementById("btnEditarEscanear");
@@ -227,11 +255,21 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   function limpiarFormulario() {
     form.reset();
     codigoBarras.value = "";
+    bloqueVencimiento.hidden = true;
     cerrarModalCodigo();
     omitirCodigo = false;
   }
   precio.addEventListener("focus", () => moneyBox.classList.add("focus"));
   precio.addEventListener("blur", () => moneyBox.classList.remove("focus"));
+
+  // Mostrar/ocultar la fecha de vencimiento según el toggle "perecedero".
+  perecedero.addEventListener("change", () => {
+    bloqueVencimiento.hidden = !perecedero.checked;
+    if (perecedero.checked && !fechaVencimiento.value) fechaVencimiento.focus();
+  });
+  editPerecedero.addEventListener("change", () => {
+    editBloqueVenc.hidden = !editPerecedero.checked;
+  });
 
   // ---------- Botones de método ----------
   document.querySelectorAll(".metodo-btn").forEach((b) => {
@@ -267,7 +305,13 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
         nombre.value = r.nombre;
         marca.value = r.marca;
         detalle.value = r.detalle;
-        mostrarMensaje("✅ Producto reconocido. Revisá los datos y poné el precio.", "success");
+        if (r.perecedero) {
+          perecedero.checked = true;
+          bloqueVencimiento.hidden = false;
+          mostrarMensaje("✅ Reconocido. ⚠️ Es perecedero: poné la fecha de vencimiento y el precio.", "success");
+        } else {
+          mostrarMensaje("✅ Producto reconocido. Revisá los datos y poné el precio.", "success");
+        }
       }
     } catch (err) {
       mostrarMensaje("⚠️ " + err.message, "error");
@@ -333,6 +377,9 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     editDetalle.value = p.detalle || "";
     editCodigo.value = p.codigo_barras || "";
     editPrecio.value = p.precio != null ? String(p.precio) : "";
+    editPerecedero.checked = !!p.perecedero;
+    editBloqueVenc.hidden = !p.perecedero;
+    editFechaVenc.value = p.fecha_vencimiento || "";
     editMsg.textContent = "";
     editMsg.className = "message";
     modalEditar.classList.add("abierto");
@@ -367,6 +414,12 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
       editMsg.className = "message message-error";
       return;
     }
+    if (editPerecedero.checked && !editFechaVenc.value) {
+      editBloqueVenc.hidden = false;
+      editMsg.textContent = "📅 Poné la fecha de vencimiento.";
+      editMsg.className = "message message-error";
+      return;
+    }
     btnEditarGuardar.disabled = true;
     btnEditarGuardar.textContent = "Guardando...";
     try {
@@ -376,6 +429,8 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
         detalle: editDetalle.value.trim(),
         precio: valorPrecio,
         codigo_barras: editCodigo.value.trim(),
+        perecedero: editPerecedero.checked,
+        fecha_vencimiento: editPerecedero.checked ? editFechaVenc.value : "",
       });
       cerrarEditar();
       mostrarMensaje("✅ Producto actualizado.", "success");
@@ -399,6 +454,13 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     if (isNaN(valorPrecio) || valorPrecio < 0)
       return mostrarMensaje("Poné un precio válido. 💰", "error");
 
+    // Si es perecedero, la fecha de vencimiento es obligatoria.
+    if (perecedero.checked && !fechaVencimiento.value) {
+      bloqueVencimiento.hidden = false;
+      fechaVencimiento.focus();
+      return mostrarMensaje("📅 Poné la fecha de vencimiento del producto.", "error");
+    }
+
     // Si falta el código de barras, lo pedimos con el modal (una vez).
     if (!codigoBarras.value.trim() && !omitirCodigo) {
       abrirModalCodigo();
@@ -414,6 +476,8 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
         detalle: detalle.value,
         precio: valorPrecio,
         codigo_barras: codigoBarras.value,
+        perecedero: perecedero.checked,
+        fecha_vencimiento: perecedero.checked ? fechaVencimiento.value : "",
         uid: user.uid,
       });
       mostrarMensaje(`✅ "${nombre.value.trim()}" guardado a ${formatearMoneda(valorPrecio)}.`, "success");
@@ -436,10 +500,18 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     items.forEach((p) => {
       const div = document.createElement("div");
       div.className = "producto-item";
+      let vencHtml = "";
+      if (p.perecedero && p.fecha_vencimiento) {
+        const e = estadoVencimiento(p.fecha_vencimiento);
+        vencHtml = `<div class="venc-mini venc-${e.clave}">${e.emoji} ${textoDias(e.dias)}</div>`;
+      } else if (p.perecedero) {
+        vencHtml = `<div class="venc-mini venc-sinfecha">⚪ sin fecha de vencimiento</div>`;
+      }
       div.innerHTML = `
         <div class="producto-info">
           <div class="producto-nombre">${p.nombre}</div>
           <div class="producto-extra">${[p.marca, p.detalle].filter(Boolean).join(" · ") || "—"}</div>
+          ${vencHtml}
         </div>
         <div class="producto-precio">${formatearMoneda(p.precio)}</div>
         <button class="btn-icon" data-edit="${p.id}" title="Editar">✏️</button>

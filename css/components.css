@@ -581,3 +581,110 @@ input:focus, select:focus, textarea:focus {
 @media (max-width: 520px) {
   .dos-columnas { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* =============================================================
+   VENCIMIENTOS
+   ============================================================= */
+
+/* Checkbox "es perecedero" (anula el estilo global de inputs) */
+input[type="checkbox"] {
+  -webkit-appearance: auto;
+  appearance: auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Mini-indicador de vencimiento en la lista de Stock */
+.venc-mini { font-size: 0.8rem; font-weight: 700; margin-top: 3px; }
+.venc-mini.venc-vencido { color: #dc2626; }
+.venc-mini.venc-pronto { color: #ea580c; }
+.venc-mini.venc-proximo { color: #ca8a04; }
+.venc-mini.venc-ok { color: #16a34a; }
+.venc-mini.venc-sinfecha { color: #6b7280; }
+
+/* Tarjetas de resumen coloreadas */
+.stat-vencido .stat-value { color: #dc2626; }
+.stat-pronto .stat-value { color: #ea580c; }
+.stat-proximo .stat-value { color: #ca8a04; }
+
+/* Lista de la página de vencimientos */
+.venc-seccion { margin-bottom: 8px; }
+.venc-count {
+  display: inline-block;
+  background: var(--color-bg);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin-left: 4px;
+}
+.venc-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-sm);
+}
+.venc-item .producto-info { flex: 1; min-width: 0; }
+.venc-derecha { text-align: right; flex-shrink: 0; }
+.venc-fecha { font-size: 0.85rem; color: var(--color-muted); }
+.venc-dias { font-size: 0.88rem; font-weight: 700; }
+
+.venc-item.venc-vencido { border-left-color: #dc2626; }
+.venc-item.venc-pronto { border-left-color: #ea580c; }
+.venc-item.venc-proximo { border-left-color: #ca8a04; }
+.venc-item.venc-ok { border-left-color: #16a34a; }
+.venc-item.venc-sinfecha { border-left-color: #9ca3af; }
+
+.venc-badge-vencido { color: #dc2626; }
+.venc-badge-pronto { color: #ea580c; }
+.venc-badge-proximo { color: #ca8a04; }
+.venc-badge-ok { color: #16a34a; }
+.venc-badge-sinfecha { color: #6b7280; }
+
+/* Sección de AVISOS del inicio */
+.aviso-ok {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  font-weight: 600;
+}
+.avisos-lista { display: flex; flex-direction: column; gap: 8px; }
+.aviso-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+}
+.aviso-item.venc-vencido { border-left-color: #dc2626; }
+.aviso-item.venc-pronto { border-left-color: #ea580c; }
+.aviso-item.venc-proximo { border-left-color: #ca8a04; }
+.aviso-emoji { font-size: 1.4rem; }
+.aviso-info { flex: 1; min-width: 0; }
+.aviso-nombre { font-weight: 700; }
+.aviso-dias { font-size: 0.85rem; color: var(--color-muted); }

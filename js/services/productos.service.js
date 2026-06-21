@@ -35,13 +35,24 @@ export async function listarProductos() {
 /**
  * Agrega un producto nuevo.
  */
-export function agregarProducto({ nombre, marca, detalle, precio, codigo_barras, uid }) {
+export function agregarProducto({
+  nombre,
+  marca,
+  detalle,
+  precio,
+  codigo_barras,
+  perecedero,
+  fecha_vencimiento,
+  uid,
+}) {
   return addDoc(collection(db, COL), {
     nombre: (nombre || "").trim(),
     marca: (marca || "").trim(),
     detalle: (detalle || "").trim(),
     precio: Number(precio),
     codigo_barras: (codigo_barras || "").trim(),
+    perecedero: !!perecedero,
+    fecha_vencimiento: (fecha_vencimiento || "").trim(),
     creado_por: uid,
     fecha_creacion: serverTimestamp(),
   });

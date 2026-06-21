@@ -16,11 +16,14 @@ import { logout } from "../services/auth.service.js";
 // Módulos del sistema.
 //  - label: texto largo (menú lateral en PC)
 //  - corto: texto corto (barra inferior del celular)
+// `bottom: false` => aparece en el menú lateral (PC) pero NO en la barra
+// inferior del celular (para no amontonar botones).
 const MENU = [
   { id: "inicio", label: "Inicio", corto: "Inicio", icono: "🏠", href: "inicio.html" },
   { id: "ganancias", label: "Ingresar Ganancias", corto: "Cargar", icono: "💵", href: "ganancias.html" },
   { id: "inventario", label: "Inventario", corto: "Stock", icono: "📦", href: "inventario.html" },
   { id: "precios", label: "Consultar Precios", corto: "Precios", icono: "🔖", href: "precios.html" },
+  { id: "vencimientos", label: "Vencimientos", corto: "Vencim.", icono: "📅", href: "vencimientos.html", bottom: false },
   { id: "estadisticas", label: "Estadísticas", corto: "Resumen", icono: "📊", href: "estadisticas.html" },
   // Próximamente: Gastos, Ventas, Caja, Proveedores...
 ];
@@ -52,8 +55,8 @@ export function montarLayout({ activo, perfil, contenido }) {
       </a>`
   ).join("");
 
-  // Botones de la barra inferior (celular).
-  const linksInferiores = MENU.map(
+  // Botones de la barra inferior (celular). Excluye los `bottom: false`.
+  const linksInferiores = MENU.filter((m) => m.bottom !== false).map(
     (m) => `
       <a href="${m.href}" class="bottom-link ${m.id === activo ? "active" : ""}">
         <span class="bottom-icon">${m.icono}</span>

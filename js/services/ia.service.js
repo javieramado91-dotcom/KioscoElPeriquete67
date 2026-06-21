@@ -30,5 +30,6 @@ export async function identificarProductoPorFoto(file) {
     nombre: data.nombre || "",
     marca: data.marca || "",
     detalle: data.detalle || "",
+    perecedero: data.perecedero === true,
   };
 }

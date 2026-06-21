@@ -21,7 +21,11 @@ Mirá la foto e identificá el producto. Respondé SOLO un JSON con estas claves
 - "nombre": nombre genérico del producto (ej: "Gaseosa", "Yerba mate", "Fideos").
 - "marca": la marca si se ve (ej: "Coca-Cola", "Playadito"). Si no se ve, cadena vacía.
 - "detalle": tamaño, peso o variedad (ej: "1.5 L", "1 kg", "tirabuzón"). Si no se ve, cadena vacía.
-Si no podés identificarlo, devolvé los tres campos como cadena vacía.
+- "perecedero": true o false. Poné true si es un producto que se vence pronto y necesita
+  fecha de vencimiento (lácteos, yogur, fiambres, carnes, pan, frutas, verduras, huevos,
+  comidas frescas). Poné false si dura mucho (gaseosas, enlatados, fideos secos, golosinas,
+  limpieza, bebidas, snacks envasados).
+Si no podés identificarlo, devolvé nombre/marca/detalle como cadena vacía y perecedero false.
 No agregues texto fuera del JSON.`;
 
 export default async function handler(req, res) {
@@ -82,6 +86,7 @@ export default async function handler(req, res) {
       nombre: parsed.nombre || "",
       marca: parsed.marca || "",
       detalle: parsed.detalle || "",
+      perecedero: parsed.perecedero === true,
     });
   } catch (e) {
     return res.status(500).json({ error: "Error interno al identificar el producto." });
