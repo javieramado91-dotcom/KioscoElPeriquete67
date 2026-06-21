@@ -15,6 +15,7 @@ import { montarLayout } from "./components/navbar.js";
 import { listarGanancias, eliminarGanancia } from "./services/ganancias.service.js";
 import { esAdmin } from "./services/usuarios.service.js";
 import { formatearMoneda, fechaLegible, nombreMes } from "./utils/format.js";
+import { escaparHTML } from "./utils/html.js";
 
 (async function init() {
   const { perfil } = await protegerPagina();
@@ -183,7 +184,7 @@ import { formatearMoneda, fechaLegible, nombreMes } from "./utils/format.js";
       tr.innerHTML = `
         <td>${fechaLegible(g.fecha)}</td>
         <td class="text-right">${formatearMoneda(g.monto)}</td>
-        <td class="muted">${g.observacion || "—"}</td>
+        <td class="muted">${escaparHTML(g.observacion || "—")}</td>
         ${
           admin
             ? `<td class="text-right">

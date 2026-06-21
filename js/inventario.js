@@ -30,6 +30,12 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
 import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
 import { RUBROS } from "./utils/rubros.js";
 import { clasificarLocal } from "./utils/clasificador-local.js";
+import {
+  TIPOS_VENCIMIENTO,
+  OPCIONES_VENCIMIENTO,
+  normalizarClasificacion,
+} from "./utils/clasificacion-producto.js";
+import { escaparHTML } from "./utils/html.js";
 
 (async function init() {
   const { user, perfil } = await protegerPagina();
@@ -65,17 +71,17 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
       <form id="formProducto" novalidate>
         <div class="field-block">
           <label for="nombre">Nombre del producto</label>
-          <input type="text" id="nombre" placeholder="Ej: Gaseosa" required />
+          <input type="text" id="nombre" maxlength="100" placeholder="Ej: Gaseosa" required />
         </div>
 
         <div class="dos-columnas">
           <div class="field-block">
             <label for="marca">Marca</label>
-            <input type="text" id="marca" placeholder="Ej: Coca-Cola" />
+            <input type="text" id="marca" maxlength="80" placeholder="Ej: Coca-Cola" />
           </div>
           <div class="field-block">
             <label for="detalle">Detalle</label>
-            <input type="text" id="detalle" placeholder="Ej: 1.5 L" />
+            <input type="text" id="detalle" maxlength="100" placeholder="Ej: 1.5 L" />
           </div>
         </div>
 
@@ -96,12 +102,33 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
           </div>
         </div>
 
-        <!-- La IA decide si es perecedero (casilla oculta, la maneja el sistema) -->
+        <!-- Se mantiene por compatibilidad con los datos existentes. -->
         <input type="checkbox" id="perecedero" hidden />
+
+        <section class="clasificacion-box" id="clasificacionBox" hidden>
+          <div class="clasificacion-titulo">✨ Revisá lo que detectamos</div>
+          <p class="clasificacion-ayuda">Podés corregirlo antes de guardar.</p>
+          <div class="dos-columnas">
+            <div class="field-block">
+              <label for="rubroDetectado">Rubro</label>
+              <select id="rubroDetectado">
+                ${RUBROS.map((r) => `<option value="${r}">${r}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field-block">
+              <label for="tipoVencimiento">Vencimiento</label>
+              <select id="tipoVencimiento">
+                ${OPCIONES_VENCIMIENTO.map((o) => `<option value="${o.valor}">${o.etiqueta}</option>`).join("")}
+              </select>
+            </div>
+          </div>
+          <div class="clasificacion-resultado" id="clasificacionResultado"></div>
+        </section>
+
         <div class="field-block" id="bloqueVencimiento" hidden>
-          <label for="fechaVencimiento">📅 Fecha de vencimiento
-            <span class="opcional">(la IA detectó que este producto vence)</span></label>
+          <label for="fechaVencimiento" id="labelFechaVencimiento">📅 Fecha de vencimiento</label>
           <input type="date" id="fechaVencimiento" />
+          <div class="fecha-texto" id="ayudaFechaVencimiento"></div>
         </div>
 
         <div id="msg" class="message"></div>
@@ -151,16 +178,16 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
         <form id="formEditar" novalidate>
           <div class="field-block">
             <label for="editNombre">Nombre del producto</label>
-            <input type="text" id="editNombre" />
+            <input type="text" id="editNombre" maxlength="100" />
           </div>
           <div class="dos-columnas">
             <div class="field-block">
               <label for="editMarca">Marca</label>
-              <input type="text" id="editMarca" />
+              <input type="text" id="editMarca" maxlength="80" />
             </div>
             <div class="field-block">
               <label for="editDetalle">Detalle</label>
-              <input type="text" id="editDetalle" />
+              <input type="text" id="editDetalle" maxlength="100" />
             </div>
           </div>
           <div class="field-block">
@@ -184,10 +211,10 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
             </select>
           </div>
           <div class="field-block">
-            <label class="switch-row">
-              <input type="checkbox" id="editPerecedero" />
-              <span>🗓️ Este producto vence (es perecedero)</span>
-            </label>
+            <label for="editTipoVenc">Control de vencimiento</label>
+            <select id="editTipoVenc">
+              ${OPCIONES_VENCIMIENTO.map((o) => `<option value="${o.valor}">${o.etiqueta}</option>`).join("")}
+            </select>
           </div>
           <div class="field-block" id="editBloqueVenc" hidden>
             <label for="editFechaVenc">📅 Fecha de vencimiento</label>
@@ -217,8 +244,14 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
   const precio = document.getElementById("precio");
   const moneyBox = document.getElementById("moneyBox");
   const perecedero = document.getElementById("perecedero");
+  const clasificacionBox = document.getElementById("clasificacionBox");
+  const rubroDetectado = document.getElementById("rubroDetectado");
+  const tipoVencimiento = document.getElementById("tipoVencimiento");
+  const clasificacionResultado = document.getElementById("clasificacionResultado");
   const bloqueVencimiento = document.getElementById("bloqueVencimiento");
   const fechaVencimiento = document.getElementById("fechaVencimiento");
+  const labelFechaVencimiento = document.getElementById("labelFechaVencimiento");
+  const ayudaFechaVencimiento = document.getElementById("ayudaFechaVencimiento");
   const modalCodigo = document.getElementById("modalCodigo");
   const btnModalEscanear = document.getElementById("btnModalEscanear");
   const btnModalOmitir = document.getElementById("btnModalOmitir");
@@ -230,7 +263,7 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
   const editPrecio = document.getElementById("editPrecio");
   const editMoneyBox = document.getElementById("editMoneyBox");
   const editRubro = document.getElementById("editRubro");
-  const editPerecedero = document.getElementById("editPerecedero");
+  const editTipoVenc = document.getElementById("editTipoVenc");
   const editBloqueVenc = document.getElementById("editBloqueVenc");
   const editFechaVenc = document.getElementById("editFechaVenc");
   const editMsg = document.getElementById("editMsg");
@@ -246,6 +279,7 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
   const contador = document.getElementById("contadorProd");
 
   let productos = [];
+  let clasificacionActual = null;
   let omitirCodigo = false; // recordar si el usuario eligió guardar sin código
   let editandoId = null; // id del producto que se está editando
   let perecederoDeterminado = false; // si la IA (o la foto) ya decidió si vence
@@ -260,6 +294,56 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
     estado.innerHTML = texto ? `<span class="spinner"></span> ${texto}` : "";
     estado.style.display = texto ? "flex" : "none";
   }
+  function actualizarCampoVencimiento() {
+    const tipo = tipoVencimiento.value;
+    perecedero.checked = tipo === TIPOS_VENCIMIENTO.PERECEDERO;
+    bloqueVencimiento.hidden = tipo === TIPOS_VENCIMIENTO.SIN_CONTROL;
+    fechaVencimiento.required = tipo === TIPOS_VENCIMIENTO.PERECEDERO;
+    labelFechaVencimiento.textContent = tipo === TIPOS_VENCIMIENTO.PERECEDERO
+      ? "📅 Fecha de vencimiento (obligatoria)"
+      : "📅 Fecha de vencimiento (opcional)";
+    ayudaFechaVencimiento.textContent = tipo === TIPOS_VENCIMIENTO.LARGA_DURACION
+      ? "Podés anotarla si querés recibir avisos más adelante."
+      : tipo === TIPOS_VENCIMIENTO.PERECEDERO
+        ? "No se puede guardar este producto sin la fecha."
+        : "";
+    if (tipo === TIPOS_VENCIMIENTO.SIN_CONTROL) fechaVencimiento.value = "";
+  }
+  function aplicarClasificacion(resultado) {
+    clasificacionActual = normalizarClasificacion(resultado);
+    rubroActual = RUBROS.includes(clasificacionActual.rubro)
+      ? clasificacionActual.rubro
+      : "Otros";
+    rubroDetectado.value = rubroActual;
+    tipoVencimiento.value = clasificacionActual.tipo_vencimiento;
+    clasificacionBox.hidden = false;
+    const confianza = clasificacionActual.confianza
+      ? `Confianza: ${clasificacionActual.confianza}%. `
+      : "";
+    clasificacionResultado.textContent =
+      confianza + (clasificacionActual.razon || "Revisá estas opciones.");
+    actualizarCampoVencimiento();
+  }
+  async function clasificarDatosDelFormulario() {
+    const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
+    const local = clasificarLocal(texto);
+    if (local) return aplicarClasificacion(local);
+
+    mostrarEstado("🤖 Analizando rubro y vencimiento...");
+    try {
+      aplicarClasificacion(await clasificarProducto(texto));
+    } catch (_) {
+      aplicarClasificacion({
+        rubro: "Otros",
+        tipo_vencimiento: "larga_duracion",
+        confianza: 0,
+        razon: "No pudimos clasificarlo automáticamente. Revisá estas opciones.",
+        origen: "correccion_usuario",
+      });
+    } finally {
+      mostrarEstado("");
+    }
+  }
   function abrirModalCodigo() {
     modalCodigo.classList.add("abierto");
   }
@@ -270,17 +354,38 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
     form.reset();
     codigoBarras.value = "";
     bloqueVencimiento.hidden = true;
+    clasificacionBox.hidden = true;
     cerrarModalCodigo();
     omitirCodigo = false;
     perecederoDeterminado = false;
     rubroActual = "Otros";
+    clasificacionActual = null;
   }
   precio.addEventListener("focus", () => moneyBox.classList.add("focus"));
   precio.addEventListener("blur", () => moneyBox.classList.remove("focus"));
 
   // En la EDICIÓN sí hay un toggle manual (para corregir a la IA).
-  editPerecedero.addEventListener("change", () => {
-    editBloqueVenc.hidden = !editPerecedero.checked;
+  rubroDetectado.addEventListener("change", () => {
+    rubroActual = rubroDetectado.value;
+    clasificacionActual = {
+      ...clasificacionActual,
+      rubro: rubroActual,
+      origen: "correccion_usuario",
+    };
+  });
+  tipoVencimiento.addEventListener("change", () => {
+    clasificacionActual = {
+      ...clasificacionActual,
+      tipo_vencimiento: tipoVencimiento.value,
+      origen: "correccion_usuario",
+      confianza: 100,
+      razon: "Clasificación confirmada por el usuario.",
+    };
+    actualizarCampoVencimiento();
+  });
+
+  editTipoVenc.addEventListener("change", () => {
+    editBloqueVenc.hidden = editTipoVenc.value === TIPOS_VENCIMIENTO.SIN_CONTROL;
   });
 
   // ---------- Botones de método ----------
@@ -319,10 +424,8 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
         detalle.value = r.detalle;
         // La IA ya decidió si vence y el rubro (no re-analizar al guardar).
         perecederoDeterminado = true;
-        perecedero.checked = r.perecedero;
-        rubroActual = r.rubro || "Otros";
-        bloqueVencimiento.hidden = !r.perecedero;
-        if (r.perecedero) {
+        aplicarClasificacion(r);
+        if (r.tipo_vencimiento === TIPOS_VENCIMIENTO.PERECEDERO) {
           mostrarMensaje(`✅ Reconocido (${rubroActual}). ⚠️ Es perecedero: poné la fecha y el precio.`, "success");
         } else {
           mostrarMensaje(`✅ Reconocido (${rubroActual}). Revisá los datos y poné el precio.`, "success");
@@ -366,6 +469,10 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
     } else {
       mostrarMensaje("✅ Código de barras agregado.", "success");
     }
+    if (!perecederoDeterminado && nombre.value.trim()) {
+      await clasificarDatosDelFormulario();
+      perecederoDeterminado = true;
+    }
     (nombre.value ? precio : nombre).focus();
   }
 
@@ -393,8 +500,9 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
     editCodigo.value = p.codigo_barras || "";
     editPrecio.value = p.precio != null ? String(p.precio) : "";
     editRubro.value = RUBROS.includes(p.rubro) ? p.rubro : "Otros";
-    editPerecedero.checked = !!p.perecedero;
-    editBloqueVenc.hidden = !p.perecedero;
+    editTipoVenc.value = p.tipo_vencimiento
+      || (p.perecedero ? TIPOS_VENCIMIENTO.PERECEDERO : TIPOS_VENCIMIENTO.LARGA_DURACION);
+    editBloqueVenc.hidden = editTipoVenc.value === TIPOS_VENCIMIENTO.SIN_CONTROL;
     editFechaVenc.value = p.fecha_vencimiento || "";
     editMsg.textContent = "";
     editMsg.className = "message";
@@ -430,7 +538,7 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
       editMsg.className = "message message-error";
       return;
     }
-    if (editPerecedero.checked && !editFechaVenc.value) {
+    if (editTipoVenc.value === TIPOS_VENCIMIENTO.PERECEDERO && !editFechaVenc.value) {
       editBloqueVenc.hidden = false;
       editMsg.textContent = "📅 Poné la fecha de vencimiento.";
       editMsg.className = "message message-error";
@@ -446,8 +554,14 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
         precio: valorPrecio,
         codigo_barras: editCodigo.value.trim(),
         rubro: editRubro.value,
-        perecedero: editPerecedero.checked,
-        fecha_vencimiento: editPerecedero.checked ? editFechaVenc.value : "",
+        perecedero: editTipoVenc.value === TIPOS_VENCIMIENTO.PERECEDERO,
+        tipo_vencimiento: editTipoVenc.value,
+        fecha_vencimiento: editTipoVenc.value === TIPOS_VENCIMIENTO.SIN_CONTROL
+          ? ""
+          : editFechaVenc.value,
+        clasificacion_origen: "correccion_usuario",
+        clasificacion_confianza: 100,
+        clasificacion_razon: "Clasificación confirmada al editar.",
       });
       cerrarEditar();
       mostrarMensaje("✅ Producto actualizado.", "success");
@@ -474,31 +588,15 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
     // La IA se encarga de decidir si es perecedero (si todavía no se sabe,
     // por ejemplo en cargas manuales o por código de barras).
     if (!perecederoDeterminado) {
-      const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
-      // 1º intentamos GRATIS con el catalogador local (palabras clave).
-      const local = clasificarLocal(texto);
-      if (local) {
-        perecedero.checked = local.perecedero;
-        rubroActual = local.rubro;
-      } else {
-        // 2º si no lo reconoce, recurrimos a la IA (casos raros).
-        mostrarEstado("🤖 Catalogando el producto con IA...");
-        try {
-          const c = await clasificarProducto(texto);
-          perecedero.checked = c.perecedero;
-          rubroActual = c.rubro || "Otros";
-        } catch (_) {
-          perecedero.checked = false; // si la IA falla/sin cupo, no bloqueamos
-          rubroActual = "Otros";
-        }
-        mostrarEstado("");
-      }
+      await clasificarDatosDelFormulario();
       perecederoDeterminado = true;
-      bloqueVencimiento.hidden = !perecedero.checked;
+      mostrarMensaje("Revisá el rubro y el vencimiento. Después tocá Guardar otra vez.", "success");
+      clasificacionBox.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
 
     // Si la IA dijo que es perecedero, la fecha de vencimiento es OBLIGATORIA.
-    if (perecedero.checked && !fechaVencimiento.value) {
+    if (tipoVencimiento.value === TIPOS_VENCIMIENTO.PERECEDERO && !fechaVencimiento.value) {
       bloqueVencimiento.hidden = false;
       fechaVencimiento.focus();
       return mostrarMensaje("📅 La IA detectó que es perecedero. Poné la fecha de vencimiento.", "error");
@@ -519,9 +617,15 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
         detalle: detalle.value,
         precio: valorPrecio,
         codigo_barras: codigoBarras.value,
-        perecedero: perecedero.checked,
-        fecha_vencimiento: perecedero.checked ? fechaVencimiento.value : "",
+        perecedero: tipoVencimiento.value === TIPOS_VENCIMIENTO.PERECEDERO,
+        tipo_vencimiento: tipoVencimiento.value,
+        fecha_vencimiento: tipoVencimiento.value === TIPOS_VENCIMIENTO.SIN_CONTROL
+          ? ""
+          : fechaVencimiento.value,
         rubro: rubroActual,
+        clasificacion_origen: clasificacionActual?.origen || "manual",
+        clasificacion_confianza: clasificacionActual?.confianza || 0,
+        clasificacion_razon: clasificacionActual?.razon || "",
         uid: user.uid,
       });
       mostrarMensaje(`✅ "${nombre.value.trim()}" guardado en ${rubroActual} a ${formatearMoneda(valorPrecio)}.`, "success");
@@ -545,7 +649,7 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
       const div = document.createElement("div");
       div.className = "producto-item";
       let vencHtml = "";
-      if (p.perecedero && p.fecha_vencimiento) {
+      if (p.fecha_vencimiento && p.tipo_vencimiento !== TIPOS_VENCIMIENTO.SIN_CONTROL) {
         const e = estadoVencimiento(p.fecha_vencimiento);
         vencHtml = `<div class="venc-mini venc-${e.clave}">${e.emoji} ${textoDias(e.dias)}</div>`;
       } else if (p.perecedero) {
@@ -553,10 +657,10 @@ import { clasificarLocal } from "./utils/clasificador-local.js";
       }
       div.innerHTML = `
         <div class="producto-info">
-          <div class="producto-nombre">${p.nombre}</div>
-          <div class="producto-extra">${[p.marca, p.detalle].filter(Boolean).join(" · ") || "—"}</div>
+          <div class="producto-nombre">${escaparHTML(p.nombre)}</div>
+          <div class="producto-extra">${escaparHTML([p.marca, p.detalle].filter(Boolean).join(" · ") || "—")}</div>
           <div class="producto-tags">
-            <span class="rubro-chip">🏷️ ${p.rubro || "Otros"}</span>
+            <span class="rubro-chip">🏷️ ${escaparHTML(p.rubro || "Otros")}</span>
             ${vencHtml}
           </div>
         </div>

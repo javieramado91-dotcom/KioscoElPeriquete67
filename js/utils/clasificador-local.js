@@ -20,6 +20,12 @@ const RUBROS_PERECEDEROS = new Set([
   "Congelados",
 ]);
 
+const RUBROS_SIN_CONTROL = new Set([
+  "Limpieza",
+  "Perfumería e higiene",
+  "Kiosco",
+]);
+
 // Reglas ORDENADAS: la primera que coincide gana. Por eso las
 // excepciones/casos específicos van ARRIBA de las generales.
 const REGLAS = [
@@ -85,14 +91,30 @@ function normalizar(s) {
 /**
  * Intenta clasificar un producto por palabras clave (sin IA).
  * @param {string} texto  nombre + marca + detalle.
- * @returns {{rubro:string, perecedero:boolean}|null}  null si no reconoce nada.
+ * @returns {{rubro:string, tipo_vencimiento:string, confianza:number, razon:string, origen:string}|null}
  */
 export function clasificarLocal(texto) {
   // Agregamos espacios al borde para que coincidan claves como "pan "
   const t = " " + normalizar(texto) + " ";
   for (const regla of REGLAS) {
     if (regla.palabras.some((p) => t.includes(p))) {
-      return { rubro: regla.rubro, perecedero: RUBROS_PERECEDEROS.has(regla.rubro) };
+      const tipo_vencimiento = RUBROS_PERECEDEROS.has(regla.rubro)
+        ? "perecedero"
+        : RUBROS_SIN_CONTROL.has(regla.rubro)
+          ? "sin_control"
+          : "larga_duracion";
+      const razon = tipo_vencimiento === "perecedero"
+        ? "Es un alimento fresco o refrigerado."
+        : tipo_vencimiento === "larga_duracion"
+          ? "Es un producto envasado de larga duración."
+          : "No necesita control habitual de vencimiento.";
+      return {
+        rubro: regla.rubro,
+        tipo_vencimiento,
+        confianza: 92,
+        razon,
+        origen: "clasificador_local",
+      };
     }
   }
   return null;

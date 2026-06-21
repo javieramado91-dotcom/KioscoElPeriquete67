@@ -19,6 +19,7 @@ import { identificarProductoPorFoto } from "./services/ia.service.js";
 import { escanearCodigo } from "./components/scanner.js";
 import { formatearMoneda } from "./utils/format.js";
 import { RUBROS } from "./utils/rubros.js";
+import { escaparHTML } from "./utils/html.js";
 
 (async function init() {
   const { perfil } = await protegerPagina();
@@ -87,9 +88,9 @@ import { RUBROS } from "./utils/rubros.js";
       div.className = "producto-item";
       div.innerHTML = `
         <div class="producto-info">
-          <div class="producto-nombre">${p.nombre}</div>
-          <div class="producto-extra">${[p.marca, p.detalle].filter(Boolean).join(" · ") || "—"}</div>
-          <div class="producto-tags"><span class="rubro-chip">🏷️ ${p.rubro || "Otros"}</span></div>
+          <div class="producto-nombre">${escaparHTML(p.nombre)}</div>
+          <div class="producto-extra">${escaparHTML([p.marca, p.detalle].filter(Boolean).join(" · ") || "—")}</div>
+          <div class="producto-tags"><span class="rubro-chip">🏷️ ${escaparHTML(p.rubro || "Otros")}</span></div>
         </div>
         <div class="producto-precio grande">${formatearMoneda(p.precio)}</div>
       `;
@@ -144,7 +145,7 @@ import { RUBROS } from "./utils/rubros.js";
         return;
       }
       buscador.value = termino;
-      const encontrados = filtrarPorTexto(productos, r.nombre || termino);
+      const encontrados = filtrarPorTexto(productos, termino);
       render(encontrados);
       if (!encontrados.length)
         mostrarMensaje(`Reconocí "${termino}", pero no está en tu inventario.`, "error");

@@ -42,8 +42,12 @@ export function agregarProducto({
   precio,
   codigo_barras,
   perecedero,
+  tipo_vencimiento,
   fecha_vencimiento,
   rubro,
+  clasificacion_origen,
+  clasificacion_confianza,
+  clasificacion_razon,
   uid,
 }) {
   return addDoc(collection(db, COL), {
@@ -53,8 +57,12 @@ export function agregarProducto({
     precio: Number(precio),
     codigo_barras: (codigo_barras || "").trim(),
     perecedero: !!perecedero,
+    tipo_vencimiento: tipo_vencimiento || (perecedero ? "perecedero" : "larga_duracion"),
     fecha_vencimiento: (fecha_vencimiento || "").trim(),
     rubro: (rubro || "Otros").trim(),
+    clasificacion_origen: (clasificacion_origen || "manual").trim(),
+    clasificacion_confianza: Number(clasificacion_confianza) || 0,
+    clasificacion_razon: (clasificacion_razon || "").trim(),
     creado_por: uid,
     fecha_creacion: serverTimestamp(),
   });
@@ -74,19 +82,17 @@ export function eliminarProducto(id) {
   return deleteDoc(doc(db, COL, id));
 }
 
-/**
- * Filtra una lista de productos por texto (nombre, marca o detalle).
- */
 export function filtrarPorTexto(productos, texto) {
   const t = (texto || "").trim().toLowerCase();
   if (!t) return productos;
-  return productos.filter((p) =>
-    [p.nombre, p.marca, p.detalle]
+  const palabras = t.split(/\s+/);
+  return productos.filter((p) => {
+    const textoProducto = [p.nombre, p.marca, p.detalle]
       .filter(Boolean)
       .join(" ")
-      .toLowerCase()
-      .includes(t)
-  );
+      .toLowerCase();
+    return palabras.every((palabra) => textoProducto.includes(palabra));
+  });
 }
 
 /**

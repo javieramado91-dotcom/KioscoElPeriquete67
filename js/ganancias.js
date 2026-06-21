@@ -11,21 +11,7 @@
 import { protegerPagina } from "./utils/guards.js";
 import { montarLayout } from "./components/navbar.js";
 import { registrarGanancia } from "./services/ganancias.service.js";
-import { hoyISO, formatearMoneda, fechaFriendly } from "./utils/format.js";
-
-/**
- * Convierte lo que escribe el usuario a un número.
- * Acepta el formato argentino: el punto es separador de miles y la
- * coma es el decimal.  Ej: "1.500,50" -> 1500.5  ·  "2000" -> 2000
- */
-function parsearMonto(texto) {
-  if (!texto) return NaN;
-  const limpio = String(texto)
-    .replace(/\s/g, "")
-    .replace(/\./g, "")   // saca separadores de miles
-    .replace(",", ".");   // coma decimal -> punto
-  return Number(limpio);
-}
+import { hoyISO, formatearMoneda, fechaFriendly, parsearMonto } from "./utils/format.js";
 
 (async function init() {
   const { user, perfil } = await protegerPagina();
@@ -61,7 +47,7 @@ function parsearMonto(texto) {
         <!-- OBSERVACIÓN -->
         <div class="field-block">
           <label for="observacion">📝 ¿Querés anotar algo? <span class="opcional">(opcional)</span></label>
-          <textarea id="observacion" rows="2"
+          <textarea id="observacion" rows="2" maxlength="500"
                     placeholder="Ej: día tranquilo, mucha venta..."></textarea>
         </div>
 

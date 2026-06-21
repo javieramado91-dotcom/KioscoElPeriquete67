@@ -7,6 +7,28 @@
 // =============================================================
 
 import { fileABase64Redimensionado } from "../utils/imagen.js";
+import { obtenerTokenActual } from "./auth.service.js";
+
+async function llamarApiPrivada(url, body) {
+  const token = await obtenerTokenActual();
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 403) {
+      throw new Error("Tu sesion no esta autorizada para usar la IA.");
+    }
+    throw new Error(data?.error || "No se pudo analizar el producto.");
+  }
+  return data;
+}
 
 /**
  * Identifica un producto a partir de una foto.
@@ -16,22 +38,20 @@ import { fileABase64Redimensionado } from "../utils/imagen.js";
 export async function identificarProductoPorFoto(file) {
   const { base64, mimeType } = await fileABase64Redimensionado(file);
 
-  const r = await fetch("/api/identificar-producto", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imagenBase64: base64, mimeType }),
+  const data = await llamarApiPrivada("/api/identificar-producto", {
+    imagenBase64: base64,
+    mimeType,
   });
-
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    throw new Error(data?.error || "No se pudo identificar el producto.");
-  }
   return {
     nombre: data.nombre || "",
     marca: data.marca || "",
     detalle: data.detalle || "",
-    perecedero: data.perecedero === true,
+    tipo_vencimiento: data.tipo_vencimiento || "larga_duracion",
+    requiere_fecha: data.requiere_fecha === true,
     rubro: data.rubro || "Otros",
+    confianza: Number(data.confianza) || 0,
+    razon: data.razon || "",
+    origen: "ia_foto",
   };
 }
 
@@ -42,12 +62,13 @@ export async function identificarProductoPorFoto(file) {
  * @returns {Promise<{perecedero:boolean, rubro:string}>}
  */
 export async function clasificarProducto(texto) {
-  const r = await fetch("/api/clasificar-producto", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ texto }),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data?.error || "No se pudo clasificar el producto.");
-  return { perecedero: data.perecedero === true, rubro: data.rubro || "Otros" };
+  const data = await llamarApiPrivada("/api/clasificar-producto", { texto });
+  return {
+    tipo_vencimiento: data.tipo_vencimiento || "larga_duracion",
+    requiere_fecha: data.requiere_fecha === true,
+    rubro: data.rubro || "Otros",
+    confianza: Number(data.confianza) || 0,
+    razon: data.razon || "",
+    origen: "ia_texto",
+  };
 }

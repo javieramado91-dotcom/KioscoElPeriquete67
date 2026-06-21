@@ -11,6 +11,7 @@ import { montarLayout } from "./components/navbar.js";
 import { listarProductos, filtrarPorTexto } from "./services/productos.service.js";
 import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
 import { fechaLegible } from "./utils/format.js";
+import { escaparHTML } from "./utils/html.js";
 
 const SECCIONES = [
   { clave: "vencido", titulo: "🔴 Vencidos" },
@@ -112,8 +113,8 @@ const SECCIONES = [
         item.className = `venc-item venc-${e.clave}`;
         item.innerHTML = `
           <div class="producto-info">
-            <div class="producto-nombre">${p.nombre}</div>
-            <div class="producto-extra">${[p.marca, p.detalle].filter(Boolean).join(" · ") || "—"}</div>
+            <div class="producto-nombre">${escaparHTML(p.nombre)}</div>
+            <div class="producto-extra">${escaparHTML([p.marca, p.detalle].filter(Boolean).join(" · ") || "—")}</div>
           </div>
           <div class="venc-derecha">
             <div class="venc-fecha">${p.fecha_vencimiento ? fechaLegible(p.fecha_vencimiento) : "—"}</div>
@@ -132,6 +133,8 @@ const SECCIONES = [
   });
 
   const todos = await listarProductos();
-  perecederos = todos.filter((p) => p.perecedero);
+  perecederos = todos.filter((p) =>
+    p.perecedero || (p.fecha_vencimiento && p.tipo_vencimiento === "larga_duracion")
+  );
   render(perecederos);
 })();

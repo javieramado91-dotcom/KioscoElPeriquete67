@@ -12,6 +12,7 @@
 // =============================================================
 
 import { logout } from "../services/auth.service.js";
+import { escaparHTML } from "../utils/html.js";
 
 // Módulos del sistema.
 //  - label: texto largo (menú lateral en PC)
@@ -85,10 +86,10 @@ export function montarLayout({ activo, perfil, contenido }) {
 
       <div class="sidebar-footer">
         <div class="user-box">
-          <div class="user-avatar">${nombre.charAt(0).toUpperCase()}</div>
+          <div class="user-avatar">${escaparHTML(nombre.charAt(0).toUpperCase())}</div>
           <div class="user-info">
-            <div class="user-name">${nombre}</div>
-            <div class="user-role badge badge-${rol}">${rol}</div>
+            <div class="user-name">${escaparHTML(nombre)}</div>
+            <div class="user-role badge badge-${escaparHTML(rol)}">${escaparHTML(rol)}</div>
           </div>
         </div>
         <button class="btn btn-ghost btn-block" id="btnLogout">Cerrar sesión</button>

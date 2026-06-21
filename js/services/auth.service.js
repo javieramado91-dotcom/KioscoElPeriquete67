@@ -46,6 +46,16 @@ export function getCurrentUser() {
 }
 
 /**
+ * Devuelve un token vigente para autenticar llamadas a nuestras funciones
+ * privadas de Vercel. Nunca se guarda: Firebase lo renueva cuando hace falta.
+ */
+export async function obtenerTokenActual() {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Tu sesion vencio. Volve a ingresar.");
+  return user.getIdToken();
+}
+
+/**
  * Traduce los códigos de error de Firebase a mensajes en español.
  */
 export function traducirErrorAuth(code) {

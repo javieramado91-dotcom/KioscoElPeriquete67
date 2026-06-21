@@ -10,6 +10,7 @@ import { protegerPagina } from "./utils/guards.js";
 import { montarLayout } from "./components/navbar.js";
 import { listarProductos } from "./services/productos.service.js";
 import { productosPorVencer, estadoVencimiento, textoDias } from "./utils/vencimientos.js";
+import { escaparHTML } from "./utils/html.js";
 
 (async function init() {
   const { perfil } = await protegerPagina();
@@ -109,7 +110,7 @@ function renderAvisos(cont, items) {
         <div class="aviso-item venc-${e.clave}">
           <span class="aviso-emoji">${e.emoji}</span>
           <div class="aviso-info">
-            <div class="aviso-nombre">${p.nombre}${p.marca ? " · " + p.marca : ""}</div>
+            <div class="aviso-nombre">${escaparHTML(p.nombre)}${p.marca ? " · " + escaparHTML(p.marca) : ""}</div>
             <div class="aviso-dias">${textoDias(e.dias)}</div>
           </div>
         </div>`;

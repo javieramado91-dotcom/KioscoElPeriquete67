@@ -384,6 +384,34 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   color: var(--color-primary-dark);
 }
+
+/* Resultado editable de la detección automática. */
+.clasificacion-box {
+  margin: 4px 0 22px;
+  padding: 16px;
+  background: #f3faf6;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+}
+.clasificacion-titulo {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+}
+.clasificacion-ayuda {
+  margin: 3px 0 14px;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+.clasificacion-box .field-block { margin-bottom: 10px; }
+.clasificacion-resultado {
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
 .spinner {
   width: 18px;
   height: 18px;

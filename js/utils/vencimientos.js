@@ -50,7 +50,7 @@ export function textoDias(dias) {
  */
 export function productosPorVencer(productos, limiteDias = 7) {
   return productos
-    .filter((p) => p.perecedero && p.fecha_vencimiento)
+    .filter((p) => p.fecha_vencimiento && p.tipo_vencimiento !== "sin_control")
     .map((p) => ({ ...p, _dias: diasHastaVencer(p.fecha_vencimiento) }))
     .filter((p) => p._dias !== null && p._dias <= limiteDias)
     .sort((a, b) => a._dias - b._dias);
