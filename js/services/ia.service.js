@@ -31,22 +31,23 @@ export async function identificarProductoPorFoto(file) {
     marca: data.marca || "",
     detalle: data.detalle || "",
     perecedero: data.perecedero === true,
+    rubro: data.rubro || "Otros",
   };
 }
 
 /**
- * Pregunta a la IA si un producto (por su nombre) es perecedero.
- * Se usa en cargas manuales o por código de barras (sin foto).
+ * Pregunta a la IA si un producto (por su nombre) es perecedero y a qué
+ * rubro pertenece. Se usa en cargas manuales o por código de barras.
  * @param {string} texto  nombre + marca + detalle del producto.
- * @returns {Promise<boolean>}
+ * @returns {Promise<{perecedero:boolean, rubro:string}>}
  */
-export async function clasificarPerecedero(texto) {
-  const r = await fetch("/api/clasificar-perecedero", {
+export async function clasificarProducto(texto) {
+  const r = await fetch("/api/clasificar-producto", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ texto }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data?.error || "No se pudo clasificar el producto.");
-  return data.perecedero === true;
+  return { perecedero: data.perecedero === true, rubro: data.rubro || "Otros" };
 }

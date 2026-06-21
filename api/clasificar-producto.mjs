@@ -1,15 +1,21 @@
 // =============================================================
-//  FUNCIÓN SERVERLESS (Vercel)  ·  /api/clasificar-perecedero
+//  FUNCIÓN SERVERLESS (Vercel)  ·  /api/clasificar-producto
 // -------------------------------------------------------------
 //  Recibe el NOMBRE de un producto (texto) y le pregunta a la IA
-//  si es perecedero o no. Se usa cuando el producto se carga a
-//  mano o por código de barras (sin foto), para que igual la IA
-//  se encargue de decidir si hay que pedir fecha de vencimiento.
+//  DOS cosas: si es perecedero y a qué rubro pertenece.
+//  Se usa en cargas manuales o por código de barras (sin foto),
+//  para que la IA igual catalogue y decida la fecha de vto.
 //
 //  La clave de Gemini vive en Vercel como GEMINI_API_KEY.
 // =============================================================
 
 const MODELO = "gemini-2.5-flash-lite";
+
+const RUBROS = [
+  "Lácteos", "Fiambres y quesos", "Carnes", "Frutas y verduras", "Panadería",
+  "Almacén", "Bebidas", "Bebidas alcohólicas", "Golosinas y snacks", "Galletitas",
+  "Congelados", "Limpieza", "Perfumería e higiene", "Kiosco", "Otros",
+];
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -28,11 +34,12 @@ export default async function handler(req, res) {
     }
 
     const prompt = `Producto de una despensa/almacén en Argentina: "${texto}".
-¿Es un producto PERECEDERO (se vence pronto y necesita fecha de vencimiento:
-lácteos, yogur, fiambres, carnes, pollo, pescado, pan, frutas, verduras, huevos,
-comidas frescas, postres) o NO perecedero (gaseosas, aguas, enlatados, fideos secos,
-arroz, golosinas, galletitas envasadas, limpieza, snacks de larga duración)?
-Respondé SOLO un JSON: {"perecedero": true} o {"perecedero": false}.`;
+Respondé SOLO un JSON con dos claves:
+- "perecedero": true si se vence pronto y necesita fecha de vencimiento (lácteos, yogur,
+  fiambres, carnes, pollo, pescado, pan, frutas, verduras, huevos, comidas frescas);
+  false si dura mucho (gaseosas, aguas, enlatados, fideos secos, arroz, golosinas,
+  galletitas envasadas, limpieza, snacks).
+- "rubro": elegí EXACTAMENTE uno de esta lista: ${RUBROS.join(", ")}. Si no encaja, "Otros".`;
 
     const cuerpo = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -57,7 +64,10 @@ Respondé SOLO un JSON: {"perecedero": true} o {"perecedero": false}.`;
     let parsed = {};
     try { parsed = JSON.parse(t); } catch (_) {}
 
-    return res.status(200).json({ perecedero: parsed.perecedero === true });
+    return res.status(200).json({
+      perecedero: parsed.perecedero === true,
+      rubro: RUBROS.includes(parsed.rubro) ? parsed.rubro : "Otros",
+    });
   } catch (e) {
     return res.status(500).json({ error: "Error interno al clasificar." });
   }

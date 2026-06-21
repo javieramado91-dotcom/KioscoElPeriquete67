@@ -16,6 +16,12 @@
 
 const MODELO = "gemini-2.5-flash-lite";
 
+const RUBROS = [
+  "Lácteos", "Fiambres y quesos", "Carnes", "Frutas y verduras", "Panadería",
+  "Almacén", "Bebidas", "Bebidas alcohólicas", "Golosinas y snacks", "Galletitas",
+  "Congelados", "Limpieza", "Perfumería e higiene", "Kiosco", "Otros",
+];
+
 const PROMPT = `Sos un asistente de una despensa/almacén en Argentina.
 Mirá la foto e identificá el producto. Respondé SOLO un JSON con estas claves:
 - "nombre": nombre genérico del producto (ej: "Gaseosa", "Yerba mate", "Fideos").
@@ -25,8 +31,10 @@ Mirá la foto e identificá el producto. Respondé SOLO un JSON con estas claves
   fecha de vencimiento (lácteos, yogur, fiambres, carnes, pan, frutas, verduras, huevos,
   comidas frescas). Poné false si dura mucho (gaseosas, enlatados, fideos secos, golosinas,
   limpieza, bebidas, snacks envasados).
-Si no podés identificarlo, devolvé nombre/marca/detalle como cadena vacía y perecedero false.
-No agregues texto fuera del JSON.`;
+- "rubro": elegí EXACTAMENTE uno de esta lista: ${RUBROS.join(", ")}. Si no encaja en
+  ninguno, poné "Otros".
+Si no podés identificarlo, devolvé nombre/marca/detalle como cadena vacía, perecedero false
+y rubro "Otros". No agregues texto fuera del JSON.`;
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -87,6 +95,7 @@ export default async function handler(req, res) {
       marca: parsed.marca || "",
       detalle: parsed.detalle || "",
       perecedero: parsed.perecedero === true,
+      rubro: RUBROS.includes(parsed.rubro) ? parsed.rubro : "Otros",
     });
   } catch (e) {
     return res.status(500).json({ error: "Error interno al identificar el producto." });

@@ -12,11 +12,13 @@ import { montarLayout } from "./components/navbar.js";
 import {
   listarProductos,
   filtrarPorTexto,
+  filtrarPorRubro,
   buscarEnListaPorCodigo,
 } from "./services/productos.service.js";
 import { identificarProductoPorFoto } from "./services/ia.service.js";
 import { escanearCodigo } from "./components/scanner.js";
 import { formatearMoneda } from "./utils/format.js";
+import { RUBROS } from "./utils/rubros.js";
 
 (async function init() {
   const { perfil } = await protegerPagina();
@@ -30,6 +32,12 @@ import { formatearMoneda } from "./utils/format.js";
 
     <div class="buscador buscador-grande">
       <input type="search" id="buscador" placeholder="🔎 Escribí el nombre del producto..." />
+    </div>
+    <div class="filtro-rubro">
+      <select id="filtroRubro">
+        <option value="todos">🏷️ Todos los rubros</option>
+        ${RUBROS.map((r) => `<option value="${r}">${r}</option>`).join("")}
+      </select>
     </div>
 
     <div class="acciones-busqueda">
@@ -51,6 +59,7 @@ import { formatearMoneda } from "./utils/format.js";
   montarLayout({ activo: "precios", perfil, contenido });
 
   const buscador = document.getElementById("buscador");
+  const filtroRubro = document.getElementById("filtroRubro");
   const btnCamara = document.getElementById("btnCamara");
   const btnCodigo = document.getElementById("btnCodigo");
   const inputFoto = document.getElementById("inputFoto");
@@ -80,6 +89,7 @@ import { formatearMoneda } from "./utils/format.js";
         <div class="producto-info">
           <div class="producto-nombre">${p.nombre}</div>
           <div class="producto-extra">${[p.marca, p.detalle].filter(Boolean).join(" · ") || "—"}</div>
+          <div class="producto-tags"><span class="rubro-chip">🏷️ ${p.rubro || "Otros"}</span></div>
         </div>
         <div class="producto-precio grande">${formatearMoneda(p.precio)}</div>
       `;
@@ -87,12 +97,20 @@ import { formatearMoneda } from "./utils/format.js";
     });
   }
 
-  // 1) Buscar escribiendo
-  buscador.addEventListener("input", () => {
+  // 1) Buscar escribiendo y/o por rubro
+  function aplicarBusqueda() {
     mostrarMensaje("", "");
     const texto = buscador.value.trim();
-    render(texto ? filtrarPorTexto(productos, texto) : [], texto.length > 0);
-  });
+    const rubro = filtroRubro.value;
+    if (!texto && rubro === "todos") {
+      render([], false); // sin criterio, no mostramos nada
+      return;
+    }
+    const res = filtrarPorTexto(filtrarPorRubro(productos, rubro), texto);
+    render(res, true);
+  }
+  buscador.addEventListener("input", aplicarBusqueda);
+  filtroRubro.addEventListener("change", aplicarBusqueda);
 
   // 2) Buscar por código de barras
   btnCodigo.addEventListener("click", async () => {

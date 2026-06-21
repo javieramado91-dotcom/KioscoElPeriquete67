@@ -688,3 +688,35 @@ input[type="checkbox"] {
 .aviso-info { flex: 1; min-width: 0; }
 .aviso-nombre { font-weight: 700; }
 .aviso-dias { font-size: 0.85rem; color: var(--color-muted); }
+
+/* =============================================================
+   RUBROS (catálogo por categoría)
+   ============================================================= */
+.filtros-stock {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.filtros-stock input { flex: 1; min-width: 0; }
+.filtros-stock select { width: auto; flex-shrink: 0; max-width: 48%; }
+
+.filtro-rubro { margin-bottom: 14px; }
+.filtro-rubro select { width: 100%; }
+
+.producto-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 5px;
+}
+.producto-tags .venc-mini { margin-top: 0; }
+.rubro-chip {
+  display: inline-block;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}

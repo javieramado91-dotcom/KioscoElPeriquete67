@@ -21,12 +21,14 @@ import {
   actualizarProducto,
   eliminarProducto,
   filtrarPorTexto,
+  filtrarPorRubro,
 } from "./services/productos.service.js";
-import { identificarProductoPorFoto, clasificarPerecedero } from "./services/ia.service.js";
+import { identificarProductoPorFoto, clasificarProducto } from "./services/ia.service.js";
 import { buscarPorCodigoBarras } from "./services/catalogo.service.js";
 import { escanearCodigo } from "./components/scanner.js";
 import { formatearMoneda, parsearMonto } from "./utils/format.js";
 import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
+import { RUBROS } from "./utils/rubros.js";
 
 (async function init() {
   const { user, perfil } = await protegerPagina();
@@ -110,8 +112,12 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
     </section>
 
     <h3 class="section-title">Mis productos (<span id="contadorProd">0</span>)</h3>
-    <div class="buscador">
+    <div class="filtros-stock">
       <input type="search" id="buscador" placeholder="🔎 Buscar producto..." />
+      <select id="filtroRubro">
+        <option value="todos">🏷️ Todos los rubros</option>
+        ${RUBROS.map((r) => `<option value="${r}">${r}</option>`).join("")}
+      </select>
     </div>
     <section class="lista-productos" id="listaProductos"></section>
     <div id="listaVacia" class="empty-state" hidden>Todavía no cargaste productos.</div>
@@ -171,6 +177,12 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
             </div>
           </div>
           <div class="field-block">
+            <label for="editRubro">🏷️ Rubro</label>
+            <select id="editRubro">
+              ${RUBROS.map((r) => `<option value="${r}">${r}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field-block">
             <label class="switch-row">
               <input type="checkbox" id="editPerecedero" />
               <span>🗓️ Este producto vence (es perecedero)</span>
@@ -216,6 +228,7 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
   const editCodigo = document.getElementById("editCodigo");
   const editPrecio = document.getElementById("editPrecio");
   const editMoneyBox = document.getElementById("editMoneyBox");
+  const editRubro = document.getElementById("editRubro");
   const editPerecedero = document.getElementById("editPerecedero");
   const editBloqueVenc = document.getElementById("editBloqueVenc");
   const editFechaVenc = document.getElementById("editFechaVenc");
@@ -226,6 +239,7 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
   const msg = document.getElementById("msg");
   const btn = document.getElementById("btnGuardar");
   const buscador = document.getElementById("buscador");
+  const filtroRubro = document.getElementById("filtroRubro");
   const lista = document.getElementById("listaProductos");
   const listaVacia = document.getElementById("listaVacia");
   const contador = document.getElementById("contadorProd");
@@ -234,6 +248,7 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
   let omitirCodigo = false; // recordar si el usuario eligió guardar sin código
   let editandoId = null; // id del producto que se está editando
   let perecederoDeterminado = false; // si la IA (o la foto) ya decidió si vence
+  let rubroActual = "Otros"; // rubro asignado por la IA al producto en carga
 
   // ---------- Helpers de UI ----------
   function mostrarMensaje(texto, tipo) {
@@ -257,6 +272,7 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
     cerrarModalCodigo();
     omitirCodigo = false;
     perecederoDeterminado = false;
+    rubroActual = "Otros";
   }
   precio.addEventListener("focus", () => moneyBox.classList.add("focus"));
   precio.addEventListener("blur", () => moneyBox.classList.remove("focus"));
@@ -300,14 +316,15 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
         nombre.value = r.nombre;
         marca.value = r.marca;
         detalle.value = r.detalle;
-        // La IA ya decidió si vence (no hace falta re-analizar al guardar).
+        // La IA ya decidió si vence y el rubro (no re-analizar al guardar).
         perecederoDeterminado = true;
         perecedero.checked = r.perecedero;
+        rubroActual = r.rubro || "Otros";
         bloqueVencimiento.hidden = !r.perecedero;
         if (r.perecedero) {
-          mostrarMensaje("✅ Reconocido. ⚠️ Es perecedero: poné la fecha de vencimiento y el precio.", "success");
+          mostrarMensaje(`✅ Reconocido (${rubroActual}). ⚠️ Es perecedero: poné la fecha y el precio.`, "success");
         } else {
-          mostrarMensaje("✅ Producto reconocido. Revisá los datos y poné el precio.", "success");
+          mostrarMensaje(`✅ Reconocido (${rubroActual}). Revisá los datos y poné el precio.`, "success");
         }
       }
     } catch (err) {
@@ -374,6 +391,7 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
     editDetalle.value = p.detalle || "";
     editCodigo.value = p.codigo_barras || "";
     editPrecio.value = p.precio != null ? String(p.precio) : "";
+    editRubro.value = RUBROS.includes(p.rubro) ? p.rubro : "Otros";
     editPerecedero.checked = !!p.perecedero;
     editBloqueVenc.hidden = !p.perecedero;
     editFechaVenc.value = p.fecha_vencimiento || "";
@@ -426,6 +444,7 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
         detalle: editDetalle.value.trim(),
         precio: valorPrecio,
         codigo_barras: editCodigo.value.trim(),
+        rubro: editRubro.value,
         perecedero: editPerecedero.checked,
         fecha_vencimiento: editPerecedero.checked ? editFechaVenc.value : "",
       });
@@ -454,12 +473,15 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
     // La IA se encarga de decidir si es perecedero (si todavía no se sabe,
     // por ejemplo en cargas manuales o por código de barras).
     if (!perecederoDeterminado) {
-      mostrarEstado("🤖 Analizando si el producto vence...");
+      mostrarEstado("🤖 Analizando y catalogando el producto...");
       try {
         const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
-        perecedero.checked = await clasificarPerecedero(texto);
+        const c = await clasificarProducto(texto);
+        perecedero.checked = c.perecedero;
+        rubroActual = c.rubro || "Otros";
       } catch (_) {
         perecedero.checked = false; // si la IA falla, no bloqueamos la carga
+        rubroActual = "Otros";
       }
       perecederoDeterminado = true;
       bloqueVencimiento.hidden = !perecedero.checked;
@@ -490,9 +512,10 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
         codigo_barras: codigoBarras.value,
         perecedero: perecedero.checked,
         fecha_vencimiento: perecedero.checked ? fechaVencimiento.value : "",
+        rubro: rubroActual,
         uid: user.uid,
       });
-      mostrarMensaje(`✅ "${nombre.value.trim()}" guardado a ${formatearMoneda(valorPrecio)}.`, "success");
+      mostrarMensaje(`✅ "${nombre.value.trim()}" guardado en ${rubroActual} a ${formatearMoneda(valorPrecio)}.`, "success");
       limpiarFormulario();
       await cargar();
     } catch (err) {
@@ -523,7 +546,10 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
         <div class="producto-info">
           <div class="producto-nombre">${p.nombre}</div>
           <div class="producto-extra">${[p.marca, p.detalle].filter(Boolean).join(" · ") || "—"}</div>
-          ${vencHtml}
+          <div class="producto-tags">
+            <span class="rubro-chip">🏷️ ${p.rubro || "Otros"}</span>
+            ${vencHtml}
+          </div>
         </div>
         <div class="producto-precio">${formatearMoneda(p.precio)}</div>
         <button class="btn-icon" data-edit="${p.id}" title="Editar">✏️</button>
@@ -553,13 +579,18 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
     }
   }
 
-  buscador.addEventListener("input", () => {
-    render(filtrarPorTexto(productos, buscador.value));
-  });
+  function aplicarFiltros() {
+    return filtrarPorTexto(
+      filtrarPorRubro(productos, filtroRubro.value),
+      buscador.value
+    );
+  }
+  buscador.addEventListener("input", () => render(aplicarFiltros()));
+  filtroRubro.addEventListener("change", () => render(aplicarFiltros()));
 
   async function cargar() {
     productos = await listarProductos();
-    render(filtrarPorTexto(productos, buscador.value));
+    render(aplicarFiltros());
   }
 
   await cargar();

@@ -43,6 +43,7 @@ export function agregarProducto({
   codigo_barras,
   perecedero,
   fecha_vencimiento,
+  rubro,
   uid,
 }) {
   return addDoc(collection(db, COL), {
@@ -53,6 +54,7 @@ export function agregarProducto({
     codigo_barras: (codigo_barras || "").trim(),
     perecedero: !!perecedero,
     fecha_vencimiento: (fecha_vencimiento || "").trim(),
+    rubro: (rubro || "Otros").trim(),
     creado_por: uid,
     fecha_creacion: serverTimestamp(),
   });
@@ -85,6 +87,14 @@ export function filtrarPorTexto(productos, texto) {
       .toLowerCase()
       .includes(t)
   );
+}
+
+/**
+ * Filtra una lista de productos por rubro ("todos" = sin filtro).
+ */
+export function filtrarPorRubro(productos, rubro) {
+  if (!rubro || rubro === "todos") return productos;
+  return productos.filter((p) => (p.rubro || "Otros") === rubro);
 }
 
 /**
