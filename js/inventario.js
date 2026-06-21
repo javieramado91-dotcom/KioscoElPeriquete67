@@ -22,7 +22,7 @@ import {
   eliminarProducto,
   filtrarPorTexto,
 } from "./services/productos.service.js";
-import { identificarProductoPorFoto } from "./services/ia.service.js";
+import { identificarProductoPorFoto, clasificarPerecedero } from "./services/ia.service.js";
 import { buscarPorCodigoBarras } from "./services/catalogo.service.js";
 import { escanearCodigo } from "./components/scanner.js";
 import { formatearMoneda, parsearMonto } from "./utils/format.js";
@@ -93,14 +93,11 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
           </div>
         </div>
 
-        <div class="field-block">
-          <label class="switch-row">
-            <input type="checkbox" id="perecedero" />
-            <span>🗓️ Este producto vence (es perecedero)</span>
-          </label>
-        </div>
+        <!-- La IA decide si es perecedero (casilla oculta, la maneja el sistema) -->
+        <input type="checkbox" id="perecedero" hidden />
         <div class="field-block" id="bloqueVencimiento" hidden>
-          <label for="fechaVencimiento">📅 Fecha de vencimiento</label>
+          <label for="fechaVencimiento">📅 Fecha de vencimiento
+            <span class="opcional">(la IA detectó que este producto vence)</span></label>
           <input type="date" id="fechaVencimiento" />
         </div>
 
@@ -236,6 +233,7 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
   let productos = [];
   let omitirCodigo = false; // recordar si el usuario eligió guardar sin código
   let editandoId = null; // id del producto que se está editando
+  let perecederoDeterminado = false; // si la IA (o la foto) ya decidió si vence
 
   // ---------- Helpers de UI ----------
   function mostrarMensaje(texto, tipo) {
@@ -258,15 +256,12 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
     bloqueVencimiento.hidden = true;
     cerrarModalCodigo();
     omitirCodigo = false;
+    perecederoDeterminado = false;
   }
   precio.addEventListener("focus", () => moneyBox.classList.add("focus"));
   precio.addEventListener("blur", () => moneyBox.classList.remove("focus"));
 
-  // Mostrar/ocultar la fecha de vencimiento según el toggle "perecedero".
-  perecedero.addEventListener("change", () => {
-    bloqueVencimiento.hidden = !perecedero.checked;
-    if (perecedero.checked && !fechaVencimiento.value) fechaVencimiento.focus();
-  });
+  // En la EDICIÓN sí hay un toggle manual (para corregir a la IA).
   editPerecedero.addEventListener("change", () => {
     editBloqueVenc.hidden = !editPerecedero.checked;
   });
@@ -305,9 +300,11 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
         nombre.value = r.nombre;
         marca.value = r.marca;
         detalle.value = r.detalle;
+        // La IA ya decidió si vence (no hace falta re-analizar al guardar).
+        perecederoDeterminado = true;
+        perecedero.checked = r.perecedero;
+        bloqueVencimiento.hidden = !r.perecedero;
         if (r.perecedero) {
-          perecedero.checked = true;
-          bloqueVencimiento.hidden = false;
           mostrarMensaje("✅ Reconocido. ⚠️ Es perecedero: poné la fecha de vencimiento y el precio.", "success");
         } else {
           mostrarMensaje("✅ Producto reconocido. Revisá los datos y poné el precio.", "success");
@@ -454,11 +451,26 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
     if (isNaN(valorPrecio) || valorPrecio < 0)
       return mostrarMensaje("Poné un precio válido. 💰", "error");
 
-    // Si es perecedero, la fecha de vencimiento es obligatoria.
+    // La IA se encarga de decidir si es perecedero (si todavía no se sabe,
+    // por ejemplo en cargas manuales o por código de barras).
+    if (!perecederoDeterminado) {
+      mostrarEstado("🤖 Analizando si el producto vence...");
+      try {
+        const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
+        perecedero.checked = await clasificarPerecedero(texto);
+      } catch (_) {
+        perecedero.checked = false; // si la IA falla, no bloqueamos la carga
+      }
+      perecederoDeterminado = true;
+      bloqueVencimiento.hidden = !perecedero.checked;
+      mostrarEstado("");
+    }
+
+    // Si la IA dijo que es perecedero, la fecha de vencimiento es OBLIGATORIA.
     if (perecedero.checked && !fechaVencimiento.value) {
       bloqueVencimiento.hidden = false;
       fechaVencimiento.focus();
-      return mostrarMensaje("📅 Poné la fecha de vencimiento del producto.", "error");
+      return mostrarMensaje("📅 La IA detectó que es perecedero. Poné la fecha de vencimiento.", "error");
     }
 
     // Si falta el código de barras, lo pedimos con el modal (una vez).

@@ -33,3 +33,20 @@ export async function identificarProductoPorFoto(file) {
     perecedero: data.perecedero === true,
   };
 }
+
+/**
+ * Pregunta a la IA si un producto (por su nombre) es perecedero.
+ * Se usa en cargas manuales o por código de barras (sin foto).
+ * @param {string} texto  nombre + marca + detalle del producto.
+ * @returns {Promise<boolean>}
+ */
+export async function clasificarPerecedero(texto) {
+  const r = await fetch("/api/clasificar-perecedero", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texto }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data?.error || "No se pudo clasificar el producto.");
+  return data.perecedero === true;
+}
