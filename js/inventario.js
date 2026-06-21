@@ -18,6 +18,7 @@ import { esAdmin } from "./services/usuarios.service.js";
 import {
   listarProductos,
   agregarProducto,
+  actualizarProducto,
   eliminarProducto,
   filtrarPorTexto,
 } from "./services/productos.service.js";
@@ -123,6 +124,51 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
         </div>
       </div>
     </div>
+
+    <!-- MODAL: editar un producto existente -->
+    <div class="modal-overlay" id="modalEditar">
+      <div class="modal-card modal-card-form">
+        <div class="modal-header">
+          <h2 class="modal-titulo">✏️ Editar producto</h2>
+          <button type="button" class="modal-cerrar" id="btnEditarCerrar" aria-label="Cerrar">✕</button>
+        </div>
+        <form id="formEditar" novalidate>
+          <div class="field-block">
+            <label for="editNombre">Nombre del producto</label>
+            <input type="text" id="editNombre" />
+          </div>
+          <div class="dos-columnas">
+            <div class="field-block">
+              <label for="editMarca">Marca</label>
+              <input type="text" id="editMarca" />
+            </div>
+            <div class="field-block">
+              <label for="editDetalle">Detalle</label>
+              <input type="text" id="editDetalle" />
+            </div>
+          </div>
+          <div class="field-block">
+            <label for="editCodigo">📊 Código de barras</label>
+            <div class="codigo-row">
+              <input type="text" id="editCodigo" readonly placeholder="Sin escanear" />
+              <button type="button" class="btn btn-outline" id="btnEditarEscanear">📷 Escanear</button>
+            </div>
+          </div>
+          <div class="field-block">
+            <label for="editPrecio">💰 Precio</label>
+            <div class="money-input" id="editMoneyBox">
+              <span class="money-symbol">$</span>
+              <input type="text" id="editPrecio" inputmode="decimal" autocomplete="off" />
+            </div>
+          </div>
+          <div id="editMsg" class="message"></div>
+          <div class="modal-acciones">
+            <button type="submit" class="btn btn-primary btn-grande" id="btnEditarGuardar">💾 Guardar cambios</button>
+            <button type="button" class="btn btn-ghost" id="btnEditarCancelar">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
   `;
 
   montarLayout({ activo: "inventario", perfil, contenido });
@@ -141,6 +187,17 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   const modalCodigo = document.getElementById("modalCodigo");
   const btnModalEscanear = document.getElementById("btnModalEscanear");
   const btnModalOmitir = document.getElementById("btnModalOmitir");
+  const modalEditar = document.getElementById("modalEditar");
+  const editNombre = document.getElementById("editNombre");
+  const editMarca = document.getElementById("editMarca");
+  const editDetalle = document.getElementById("editDetalle");
+  const editCodigo = document.getElementById("editCodigo");
+  const editPrecio = document.getElementById("editPrecio");
+  const editMoneyBox = document.getElementById("editMoneyBox");
+  const editMsg = document.getElementById("editMsg");
+  const formEditar = document.getElementById("formEditar");
+  const btnEditarEscanear = document.getElementById("btnEditarEscanear");
+  const btnEditarGuardar = document.getElementById("btnEditarGuardar");
   const msg = document.getElementById("msg");
   const btn = document.getElementById("btnGuardar");
   const buscador = document.getElementById("buscador");
@@ -150,6 +207,7 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
 
   let productos = [];
   let omitirCodigo = false; // recordar si el usuario eligió guardar sin código
+  let editandoId = null; // id del producto que se está editando
 
   // ---------- Helpers de UI ----------
   function mostrarMensaje(texto, tipo) {
@@ -267,6 +325,70 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     if (e.target === modalCodigo) cerrarModalCodigo();
   });
 
+  // ---------- Editar producto ----------
+  function abrirEditar(p) {
+    editandoId = p.id;
+    editNombre.value = p.nombre || "";
+    editMarca.value = p.marca || "";
+    editDetalle.value = p.detalle || "";
+    editCodigo.value = p.codigo_barras || "";
+    editPrecio.value = p.precio != null ? String(p.precio) : "";
+    editMsg.textContent = "";
+    editMsg.className = "message";
+    modalEditar.classList.add("abierto");
+  }
+  function cerrarEditar() {
+    modalEditar.classList.remove("abierto");
+    editandoId = null;
+  }
+  editPrecio.addEventListener("focus", () => editMoneyBox.classList.add("focus"));
+  editPrecio.addEventListener("blur", () => editMoneyBox.classList.remove("focus"));
+  document.getElementById("btnEditarCerrar").addEventListener("click", cerrarEditar);
+  document.getElementById("btnEditarCancelar").addEventListener("click", cerrarEditar);
+  modalEditar.addEventListener("click", (e) => {
+    if (e.target === modalEditar) cerrarEditar();
+  });
+
+  btnEditarEscanear.addEventListener("click", async () => {
+    const codigo = await escanearCodigo();
+    if (codigo) editCodigo.value = codigo;
+  });
+
+  formEditar.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const valorPrecio = parsearMonto(editPrecio.value);
+    if (!editNombre.value.trim()) {
+      editMsg.textContent = "Escribí el nombre del producto.";
+      editMsg.className = "message message-error";
+      return;
+    }
+    if (isNaN(valorPrecio) || valorPrecio < 0) {
+      editMsg.textContent = "Poné un precio válido. 💰";
+      editMsg.className = "message message-error";
+      return;
+    }
+    btnEditarGuardar.disabled = true;
+    btnEditarGuardar.textContent = "Guardando...";
+    try {
+      await actualizarProducto(editandoId, {
+        nombre: editNombre.value.trim(),
+        marca: editMarca.value.trim(),
+        detalle: editDetalle.value.trim(),
+        precio: valorPrecio,
+        codigo_barras: editCodigo.value.trim(),
+      });
+      cerrarEditar();
+      mostrarMensaje("✅ Producto actualizado.", "success");
+      await cargar();
+    } catch (err) {
+      editMsg.textContent = "⚠️ No se pudo guardar. Probá de nuevo.";
+      editMsg.className = "message message-error";
+    } finally {
+      btnEditarGuardar.disabled = false;
+      btnEditarGuardar.textContent = "💾 Guardar cambios";
+    }
+  });
+
   // ---------- Guardar ----------
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -320,11 +442,21 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
           <div class="producto-extra">${[p.marca, p.detalle].filter(Boolean).join(" · ") || "—"}</div>
         </div>
         <div class="producto-precio">${formatearMoneda(p.precio)}</div>
+        <button class="btn-icon" data-edit="${p.id}" title="Editar">✏️</button>
         ${admin ? `<button class="btn-icon" data-del="${p.id}" title="Eliminar">🗑️</button>` : ""}
       `;
       lista.appendChild(div);
     });
 
+    // Editar (disponible para cualquier usuario).
+    lista.querySelectorAll("[data-edit]").forEach((b) => {
+      b.addEventListener("click", () => {
+        const p = productos.find((x) => x.id === b.dataset.edit);
+        if (p) abrirEditar(p);
+      });
+    });
+
+    // Eliminar (solo admin).
     if (admin) {
       lista.querySelectorAll("[data-del]").forEach((b) => {
         b.addEventListener("click", async () => {
