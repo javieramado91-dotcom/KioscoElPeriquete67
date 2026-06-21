@@ -330,3 +330,162 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 24px;
   line-height: 1.6;
 }
+
+/* =============================================================
+   INVENTARIO Y PRECIOS
+   ============================================================= */
+
+/* Botones para elegir cómo cargar (Manual / Foto / Código) */
+.metodo-botones {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.metodo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px;
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.metodo-btn:hover,
+.metodo-btn:active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+.metodo-icono { font-size: 1.8rem; }
+
+/* Dos campos lado a lado (marca / detalle) */
+.dos-columnas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Línea de estado ("Identificando con IA...") */
+.estado-carga {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  color: var(--color-primary-dark);
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(0, 0, 0, 0.12);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* Buscador */
+.buscador { margin-bottom: 16px; }
+.buscador input { font-size: 1.05rem; }
+.buscador-grande input {
+  font-size: 1.2rem;
+  padding: 16px;
+}
+.acciones-busqueda {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.acciones-busqueda .btn { flex: 1; }
+
+/* Lista de productos */
+.lista-productos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.producto-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.producto-info { flex: 1; min-width: 0; }
+.producto-nombre {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.producto-extra {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+.producto-precio {
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+.producto-precio.grande { font-size: 1.5rem; }
+
+/* Ventana del escáner de código de barras */
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.scanner-box {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 420px;
+  overflow: hidden;
+}
+.scanner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-weight: 700;
+}
+.scanner-close {
+  background: var(--color-bg);
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.scanner-view { width: 100%; }
+.scanner-hint {
+  padding: 14px 16px;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+/* En celular, los campos marca/detalle se apilan */
+@media (max-width: 520px) {
+  .dos-columnas { grid-template-columns: 1fr; gap: 0; }
+}

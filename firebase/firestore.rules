@@ -42,6 +42,15 @@ service cloud.firestore {
         && d.fecha_creacion is timestamp;
     }
 
+    // Valida la forma y tipos de un documento de producto.
+    function productoValido(d) {
+      return d.nombre is string
+        && d.nombre.size() > 0
+        && d.precio is number
+        && d.precio >= 0
+        && d.creado_por is string;
+    }
+
     /* ---------- COLECCIÓN: usuarios ---------- */
     match /usuarios/{userId} {
       // Cualquier autenticado puede leer perfiles (para mostrar nombres/roles).
@@ -80,6 +89,25 @@ service cloud.firestore {
         && gananciaValida(request.resource.data)
         && resource.data.creado_por == request.auth.uid
         && request.resource.data.creado_por == resource.data.creado_por;
+
+      // Eliminar: solo admin.
+      allow delete: if esAdmin();
+    }
+
+    /* ---------- COLECCIÓN: productos ---------- */
+    match /productos/{id} {
+      // Cualquier autenticado puede leer el inventario y los precios.
+      allow read: if estaAutenticado();
+
+      // Crear: datos válidos y el creador es el propio usuario.
+      allow create: if estaAutenticado()
+        && productoValido(request.resource.data)
+        && request.resource.data.creado_por == request.auth.uid;
+
+      // Editar: cualquier autenticado puede actualizar (ej: cambiar precio),
+      // siempre que el producto siga siendo válido.
+      allow update: if estaAutenticado()
+        && productoValido(request.resource.data);
 
       // Eliminar: solo admin.
       allow delete: if esAdmin();

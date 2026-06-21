@@ -27,6 +27,19 @@ export function formatearMoneda(valor) {
 }
 
 /**
+ * Interpreta lo que escribe el usuario como número (formato argentino:
+ * punto = miles, coma = decimal). Ej: "1.500,50" -> 1500.5
+ */
+export function parsearMonto(texto) {
+  if (texto === null || texto === undefined || texto === "") return NaN;
+  const limpio = String(texto)
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  return Number(limpio);
+}
+
+/**
  * Convierte "YYYY-MM-DD" a un texto legible (19/06/2026).
  */
 export function fechaLegible(iso) {

@@ -19,8 +19,10 @@ import { logout } from "../services/auth.service.js";
 const MENU = [
   { id: "inicio", label: "Inicio", corto: "Inicio", icono: "🏠", href: "inicio.html" },
   { id: "ganancias", label: "Ingresar Ganancias", corto: "Cargar", icono: "💵", href: "ganancias.html" },
+  { id: "inventario", label: "Inventario", corto: "Stock", icono: "📦", href: "inventario.html" },
+  { id: "precios", label: "Consultar Precios", corto: "Precios", icono: "🔖", href: "precios.html" },
   { id: "estadisticas", label: "Estadísticas", corto: "Resumen", icono: "📊", href: "estadisticas.html" },
-  // Próximamente: Gastos, Inventario, Ventas, Caja, Proveedores...
+  // Próximamente: Gastos, Ventas, Caja, Proveedores...
 ];
 
 async function cerrarSesion() {

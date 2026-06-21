@@ -47,15 +47,21 @@ import { montarLayout } from "./components/navbar.js";
         <div class="module-desc">Totales, promedios y gráficos.</div>
       </a>
 
+      <a href="inventario.html" class="module-card">
+        <div class="module-icon">📦</div>
+        <div class="module-name">Inventario</div>
+        <div class="module-desc">Cargá productos por foto o código.</div>
+      </a>
+      <a href="precios.html" class="module-card">
+        <div class="module-icon">🔖</div>
+        <div class="module-name">Precios</div>
+        <div class="module-desc">Consultá precios al instante.</div>
+      </a>
+
       <!-- Tarjetas "preparadas" para el futuro (deshabilitadas) -->
       <div class="module-card disabled">
         <div class="module-icon">🧾</div>
         <div class="module-name">Gastos</div>
-        <div class="module-desc">Próximamente</div>
-      </div>
-      <div class="module-card disabled">
-        <div class="module-icon">📦</div>
-        <div class="module-name">Inventario</div>
         <div class="module-desc">Próximamente</div>
       </div>
       <div class="module-card disabled">
