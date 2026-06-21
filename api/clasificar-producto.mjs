@@ -57,7 +57,7 @@ Respondé SOLO un JSON con dos claves:
 
     const data = await r.json();
     if (!r.ok) {
-      return res.status(502).json({ error: "No se pudo clasificar el producto." });
+      return res.status(502).json({ error: "No se pudo clasificar el producto.", _debug: { status: r.status, data } });
     }
 
     const t = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
