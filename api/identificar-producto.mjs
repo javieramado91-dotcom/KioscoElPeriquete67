@@ -65,6 +65,7 @@ export default async function handler(req, res) {
     if (!r.ok) {
       return res.status(502).json({
         error: "La IA no pudo procesar la foto. Probá de nuevo o cargá a mano.",
+        _debug: { status: r.status, data },
       });
     }
 
@@ -78,6 +79,6 @@ export default async function handler(req, res) {
       detalle: parsed.detalle || "",
     });
   } catch (e) {
-    return res.status(500).json({ error: "Error interno al identificar el producto." });
+    return res.status(500).json({ error: "Error interno al identificar el producto.", _debug: String(e) });
   }
 }
