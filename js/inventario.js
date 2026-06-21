@@ -5,7 +5,10 @@
 //   1. ✍️  Manual.
 //   2. 📷  Foto -> la IA (Gemini) completa nombre/marca/detalle.
 //   3. 📊  Código de barras -> catálogo gratis completa los datos.
-//  En las 3, el usuario solo confirma y pone el precio.
+//
+//  El código de barras es IMPORTANTE (sirve para buscar precios),
+//  así que siempre está visible y, al guardar, si falta, el
+//  sistema lo pide (sin obligar).
 //  Abajo: lista de productos con buscador.
 // =============================================================
 
@@ -71,9 +74,13 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
           </div>
         </div>
 
-        <div class="field-block" id="bloqueCodigo" hidden>
-          <label for="codigoBarras">Código de barras</label>
-          <input type="text" id="codigoBarras" readonly />
+        <!-- Código de barras: SIEMPRE visible -->
+        <div class="field-block">
+          <label for="codigoBarras">📊 Código de barras <span class="opcional">(importante)</span></label>
+          <div class="codigo-row">
+            <input type="text" id="codigoBarras" readonly placeholder="Sin escanear" />
+            <button type="button" class="btn btn-outline" id="btnEscanear">📷 Escanear</button>
+          </div>
         </div>
 
         <div class="field-block">
@@ -81,6 +88,16 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
           <div class="money-input" id="moneyBox">
             <span class="money-symbol">$</span>
             <input type="text" id="precio" inputmode="decimal" placeholder="0" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- Pedido de escaneo al guardar (si falta el código) -->
+        <div class="prompt-codigo" id="promptCodigo" hidden>
+          <p>📊 ¿Querés escanear el <strong>código de barras</strong> antes de guardar?
+          Es importante para buscar precios después.</p>
+          <div class="prompt-acciones">
+            <button type="button" class="btn btn-primary" id="btnPromptEscanear">📷 Escanear ahora</button>
+            <button type="button" class="btn btn-ghost" id="btnPromptOmitir">Guardar sin código</button>
           </div>
         </div>
 
@@ -109,10 +126,13 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   const nombre = document.getElementById("nombre");
   const marca = document.getElementById("marca");
   const detalle = document.getElementById("detalle");
-  const bloqueCodigo = document.getElementById("bloqueCodigo");
   const codigoBarras = document.getElementById("codigoBarras");
+  const btnEscanear = document.getElementById("btnEscanear");
   const precio = document.getElementById("precio");
   const moneyBox = document.getElementById("moneyBox");
+  const promptCodigo = document.getElementById("promptCodigo");
+  const btnPromptEscanear = document.getElementById("btnPromptEscanear");
+  const btnPromptOmitir = document.getElementById("btnPromptOmitir");
   const msg = document.getElementById("msg");
   const btn = document.getElementById("btnGuardar");
   const buscador = document.getElementById("buscador");
@@ -121,17 +141,22 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   const contador = document.getElementById("contadorProd");
 
   let productos = [];
+  let omitirCodigo = false; // recordar si el usuario eligió guardar sin código
 
   // ---------- Helpers de UI ----------
   function mostrarMensaje(texto, tipo) {
     msg.textContent = texto;
     msg.className = `message message-${tipo}`;
   }
-  function mostrarEstado(texto, cargando = true) {
-    estado.innerHTML = cargando
-      ? `<span class="spinner"></span> ${texto}`
-      : texto;
+  function mostrarEstado(texto) {
+    estado.innerHTML = texto ? `<span class="spinner"></span> ${texto}` : "";
     estado.style.display = texto ? "flex" : "none";
+  }
+  function limpiarFormulario() {
+    form.reset();
+    codigoBarras.value = "";
+    promptCodigo.hidden = true;
+    omitirCodigo = false;
   }
   precio.addEventListener("focus", () => moneyBox.classList.add("focus"));
   precio.addEventListener("blur", () => moneyBox.classList.remove("focus"));
@@ -143,13 +168,14 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
 
   function elegirMetodo(metodo) {
     mostrarMensaje("", "");
+    promptCodigo.hidden = true;
     if (metodo === "manual") {
-      form.reset();
-      bloqueCodigo.hidden = true;
+      limpiarFormulario();
       nombre.focus();
     } else if (metodo === "foto") {
       inputFoto.click();
     } else if (metodo === "codigo") {
+      limpiarFormulario();
       escanearYcompletar();
     }
   }
@@ -180,29 +206,48 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
   });
 
   // ---------- Código de barras ----------
+  btnEscanear.addEventListener("click", () => escanearYcompletar());
+
   async function escanearYcompletar() {
     const codigo = await escanearCodigo();
     if (!codigo) return;
 
-    bloqueCodigo.hidden = false;
     codigoBarras.value = codigo;
+    promptCodigo.hidden = true; // ya tiene código, no hace falta pedirlo
 
-    mostrarEstado("Buscando el producto en el catálogo...");
-    try {
-      const r = await buscarPorCodigoBarras(codigo);
-      if (r && (r.nombre || r.marca)) {
-        nombre.value = r.nombre;
-        marca.value = r.marca;
-        detalle.value = r.detalle;
-        mostrarMensaje("✅ Producto encontrado. Revisá y poné el precio.", "success");
-      } else {
-        mostrarMensaje("No estaba en el catálogo. Cargá el nombre a mano. 🙂", "error");
+    // Solo buscamos en el catálogo si el producto todavía no tiene nombre
+    // (para no pisar lo que ya completó la foto o el usuario).
+    if (!nombre.value.trim()) {
+      mostrarEstado("Buscando el producto en el catálogo...");
+      try {
+        const r = await buscarPorCodigoBarras(codigo);
+        if (r && (r.nombre || r.marca)) {
+          nombre.value = r.nombre;
+          marca.value = r.marca;
+          detalle.value = r.detalle;
+          mostrarMensaje("✅ Producto encontrado. Revisá y poné el precio.", "success");
+        } else {
+          mostrarMensaje("Código guardado. No estaba en el catálogo: cargá el nombre a mano. 🙂", "error");
+        }
+      } finally {
+        mostrarEstado("");
       }
-    } finally {
-      mostrarEstado("");
-      (nombre.value ? precio : nombre).focus();
+    } else {
+      mostrarMensaje("✅ Código de barras agregado.", "success");
     }
+    (nombre.value ? precio : nombre).focus();
   }
+
+  // ---------- Pedido de escaneo al guardar ----------
+  btnPromptEscanear.addEventListener("click", () => {
+    promptCodigo.hidden = true;
+    escanearYcompletar();
+  });
+  btnPromptOmitir.addEventListener("click", () => {
+    omitirCodigo = true;
+    promptCodigo.hidden = true;
+    form.requestSubmit(); // reintenta guardar, ahora sí sin código
+  });
 
   // ---------- Guardar ----------
   form.addEventListener("submit", async (e) => {
@@ -213,6 +258,13 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
     if (!nombre.value.trim()) return mostrarMensaje("Escribí el nombre del producto.", "error");
     if (isNaN(valorPrecio) || valorPrecio < 0)
       return mostrarMensaje("Poné un precio válido. 💰", "error");
+
+    // Si falta el código de barras, lo pedimos (una vez).
+    if (!codigoBarras.value.trim() && !omitirCodigo) {
+      promptCodigo.hidden = false;
+      promptCodigo.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
 
     btn.disabled = true;
     btn.textContent = "Guardando...";
@@ -226,8 +278,7 @@ import { formatearMoneda, parsearMonto } from "./utils/format.js";
         uid: user.uid,
       });
       mostrarMensaje(`✅ "${nombre.value.trim()}" guardado a ${formatearMoneda(valorPrecio)}.`, "success");
-      form.reset();
-      bloqueCodigo.hidden = true;
+      limpiarFormulario();
       await cargar();
     } catch (err) {
       mostrarMensaje("⚠️ No se pudo guardar. Probá de nuevo.", "error");
