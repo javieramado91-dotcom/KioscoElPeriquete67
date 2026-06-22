@@ -168,6 +168,28 @@ import { escaparHTML } from "./utils/html.js";
       </div>
     </div>
 
+    <!-- MODAL: ofrecer fecha de vencimiento antes de guardar -->
+    <div class="modal-overlay" id="modalVencimiento">
+      <div class="modal-card">
+        <div class="modal-icono">📅</div>
+        <h2 class="modal-titulo">¿Tiene fecha de vencimiento?</h2>
+        <p class="modal-texto">Antes de guardar, podés agregar la fecha de vencimiento de este producto.</p>
+        <div class="modal-consejo">
+          <span class="modal-consejo-icono">💡</span>
+          <span><strong>Es útil:</strong> el sistema te va a avisar cuando esté por vencer
+          para que no pierdas mercadería.</span>
+        </div>
+        <div class="field-block" style="margin-top:1rem">
+          <label for="fechaModalVenc">📅 Fecha de vencimiento</label>
+          <input type="date" id="fechaModalVenc" />
+        </div>
+        <div class="modal-acciones">
+          <button type="button" class="btn btn-primary btn-grande" id="btnModalVencGuardar">✅ Guardar con fecha</button>
+          <button type="button" class="btn btn-ghost" id="btnModalVencOmitir">Guardar sin fecha</button>
+        </div>
+      </div>
+    </div>
+
     <!-- MODAL: editar un producto existente -->
     <div class="modal-overlay" id="modalEditar">
       <div class="modal-card modal-card-form">
@@ -255,6 +277,10 @@ import { escaparHTML } from "./utils/html.js";
   const modalCodigo = document.getElementById("modalCodigo");
   const btnModalEscanear = document.getElementById("btnModalEscanear");
   const btnModalOmitir = document.getElementById("btnModalOmitir");
+  const modalVencimiento = document.getElementById("modalVencimiento");
+  const fechaModalVenc = document.getElementById("fechaModalVenc");
+  const btnModalVencGuardar = document.getElementById("btnModalVencGuardar");
+  const btnModalVencOmitir = document.getElementById("btnModalVencOmitir");
   const modalEditar = document.getElementById("modalEditar");
   const editNombre = document.getElementById("editNombre");
   const editMarca = document.getElementById("editMarca");
@@ -280,7 +306,8 @@ import { escaparHTML } from "./utils/html.js";
 
   let productos = [];
   let clasificacionActual = null;
-  let omitirCodigo = false; // recordar si el usuario eligió guardar sin código
+  let omitirCodigo = false;
+  let omitirVencimiento = false;
   let editandoId = null; // id del producto que se está editando
   let perecederoDeterminado = false; // si la IA (o la foto) ya decidió si vence
   let rubroActual = "Otros"; // rubro asignado por la IA al producto en carga
@@ -355,6 +382,7 @@ import { escaparHTML } from "./utils/html.js";
     clasificacionBox.hidden = true;
     cerrarModalCodigo();
     omitirCodigo = false;
+    omitirVencimiento = false;
     perecederoDeterminado = false;
     rubroActual = "Otros";
     clasificacionActual = null;
@@ -484,9 +512,35 @@ import { escaparHTML } from "./utils/html.js";
     cerrarModalCodigo();
     form.requestSubmit(); // reintenta guardar, ahora sí sin código
   });
-  // Tocar el fondo oscuro cierra el modal (sin guardar)
   modalCodigo.addEventListener("click", (e) => {
     if (e.target === modalCodigo) cerrarModalCodigo();
+  });
+
+  // ---------- Modal de vencimiento (siempre antes de guardar) ----------
+  function abrirModalVencimiento() {
+    fechaModalVenc.value = fechaVencimiento.value || "";
+    modalVencimiento.classList.add("abierto");
+  }
+  function cerrarModalVencimiento() {
+    modalVencimiento.classList.remove("abierto");
+  }
+  btnModalVencGuardar.addEventListener("click", () => {
+    if (!fechaModalVenc.value) {
+      fechaModalVenc.focus();
+      return;
+    }
+    fechaVencimiento.value = fechaModalVenc.value;
+    omitirVencimiento = true;
+    cerrarModalVencimiento();
+    form.requestSubmit();
+  });
+  btnModalVencOmitir.addEventListener("click", () => {
+    omitirVencimiento = true;
+    cerrarModalVencimiento();
+    form.requestSubmit();
+  });
+  modalVencimiento.addEventListener("click", (e) => {
+    if (e.target === modalVencimiento) cerrarModalVencimiento();
   });
 
   // ---------- Editar producto ----------
@@ -603,6 +657,13 @@ import { escaparHTML } from "./utils/html.js";
     // Si falta el código de barras, lo pedimos con el modal (una vez).
     if (!codigoBarras.value.trim() && !omitirCodigo) {
       abrirModalCodigo();
+      return;
+    }
+
+    // Siempre ofrecer agregar fecha de vencimiento (excepto si ya la puso o ya decidió).
+    if (!omitirVencimiento && !fechaVencimiento.value
+        && tipoVencimiento.value !== TIPOS_VENCIMIENTO.PERECEDERO) {
+      abrirModalVencimiento();
       return;
     }
 
