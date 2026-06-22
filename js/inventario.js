@@ -419,7 +419,8 @@ const TOTAL = PASOS.length;
       altaMsg.textContent = `✅ "${datos.nombre.trim()}" guardado en ${datos.rubro} (${valorCantidad} u.) a ${formatearMoneda(valorPrecio)}.`;
       await cargar();
     } catch (err) {
-      mostrarWizMsg("⚠️ No se pudo guardar. Probá de nuevo.");
+      mostrarWizMsg("⚠️ Error: " + (err?.code || err?.message || "desconocido"));
+      console.error("Error guardando producto:", err);
     } finally {
       wizSiguiente.disabled = false;
       wizSiguiente.textContent = "✅ Guardar producto";

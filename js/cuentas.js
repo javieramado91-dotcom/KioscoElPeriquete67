@@ -299,8 +299,9 @@ import { escaparHTML } from "./utils/html.js";
       await cargar();
       if (reabrir) abrirDetalle(reabrir); // si estábamos editando desde el detalle, lo reabrimos
     } catch (err) {
-      clMsg.textContent = "⚠️ No se pudo guardar. Probá de nuevo.";
+      clMsg.textContent = "⚠️ Error: " + (err?.code || err?.message || "desconocido");
       clMsg.className = "message message-error";
+      console.error("Error guardando cliente:", err);
     } finally {
       btnClienteGuardar.disabled = false;
       btnClienteGuardar.textContent = "💾 Guardar";
@@ -401,8 +402,9 @@ import { escaparHTML } from "./utils/html.js";
       await cargar();
       renderDetalle();
     } catch (err) {
-      movMsg.textContent = "⚠️ No se pudo guardar. Probá de nuevo.";
+      movMsg.textContent = "⚠️ Error: " + (err?.code || err?.message || "desconocido");
       movMsg.className = "message message-error";
+      console.error("Error guardando movimiento:", err);
     } finally {
       btnMovGuardar.disabled = false;
       btnMovGuardar.textContent = txt;
