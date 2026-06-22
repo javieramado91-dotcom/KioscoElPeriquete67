@@ -1,13 +1,15 @@
 // =============================================================
-//  CONTROLADOR DEL MÓDULO INVENTARIO  (carga manual)
+//  CONTROLADOR DEL MÓDULO INVENTARIO  (alta tipo asistente)
 // -------------------------------------------------------------
-//  Flujo simple y profesional, pensado para control de stock:
-//   1. 📊  Arranca por el CÓDIGO DE BARRAS (si el producto tiene).
-//          Si está en el catálogo, completa nombre/marca/detalle.
-//   2. ✍️  Se completan a mano: nombre, marca, detalle, rubro,
-//          precio y CANTIDAD (stock).
-//   3. 💾  Al guardar, pregunta: ¿tiene fecha de vencimiento?
-//          Si sí, la pide; si no, se guarda sin fecha.
+//  El alta de producto es un ASISTENTE paso a paso (wizard):
+//   1. 📊 Código de barras o QR (escanear / escribir, opcional).
+//   2. ✏️ Nombre del producto.
+//   3. 🏷️ Marca (opcional).
+//   4. 📦 Detalle (opcional).
+//   5. 🗂️ Rubro (lista de botones para tocar).
+//   6. 💰 Precio.
+//   7. 🔢 Cantidad en stock.
+//   8. 📅 ¿Tiene vencimiento? → fecha → Guardar.
 //
 //  Guarda TODA la info de cada producto para el control de stock
 //  y un futuro módulo de ventas (que descontará la cantidad).
@@ -31,6 +33,19 @@ import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
 import { RUBROS } from "./utils/rubros.js";
 import { escaparHTML } from "./utils/html.js";
 
+// Pasos del asistente (en orden).
+const PASOS = [
+  { key: "codigo", tipo: "codigo", titulo: "📊 Código de barras o QR", sub: "Escaneá o escribí el código. Si el producto no tiene, tocá Siguiente." },
+  { key: "nombre", tipo: "texto", titulo: "✏️ ¿Qué producto es?", sub: "Escribí el nombre del producto.", placeholder: "Ej: Gaseosa Coca-Cola" },
+  { key: "marca", tipo: "texto", titulo: "🏷️ Marca", sub: "Opcional. Si no sabés, tocá Siguiente.", placeholder: "Ej: Coca-Cola" },
+  { key: "detalle", tipo: "texto", titulo: "📦 Detalle", sub: "Opcional: tamaño, peso o variedad.", placeholder: "Ej: 1.5 L" },
+  { key: "rubro", tipo: "rubro", titulo: "🗂️ Elegí el rubro", sub: "Tocá la categoría que corresponde." },
+  { key: "precio", tipo: "precio", titulo: "💰 Precio", sub: "¿A cuánto lo vendés?", placeholder: "0" },
+  { key: "cantidad", tipo: "cantidad", titulo: "🔢 Cantidad en stock", sub: "¿Cuántas unidades tenés?", placeholder: "0" },
+  { key: "vencimiento", tipo: "vencimiento", titulo: "📅 ¿Tiene fecha de vencimiento?", sub: "Si la tiene, la cargamos para avisarte antes de que se venza." },
+];
+const TOTAL = PASOS.length;
+
 (async function init() {
   const { user, perfil } = await protegerPagina();
   const admin = esAdmin(perfil);
@@ -39,68 +54,15 @@ import { escaparHTML } from "./utils/html.js";
   contenido.innerHTML = `
     <header class="page-header">
       <h1>📦 Inventario</h1>
-      <p class="muted">Cargá tus productos. Empezá por el código de barras si lo tiene. 👇</p>
+      <p class="muted">Sumá productos a tu stock. Es fácil, te vamos guiando. 👇</p>
     </header>
 
-    <section class="form-card form-amable">
-      <div id="estadoCarga" class="estado-carga"></div>
-
-      <form id="formProducto" novalidate>
-        <!-- Código de barras: el punto de partida -->
-        <div class="field-block">
-          <label for="codigoBarras">📊 Código de barras <span class="opcional">(si el producto lo tiene)</span></label>
-          <div class="codigo-row">
-            <input type="text" id="codigoBarras" inputmode="numeric" placeholder="Escaneá o escribí el código" />
-            <button type="button" class="btn btn-primary" id="btnEscanear">📷 Escanear</button>
-          </div>
-          <div class="fecha-texto">Si tiene código, después buscás el precio al instante con la cámara.</div>
-        </div>
-
-        <div class="field-block">
-          <label for="nombre">Nombre del producto</label>
-          <input type="text" id="nombre" maxlength="100" placeholder="Ej: Gaseosa Coca-Cola" required />
-        </div>
-
-        <div class="dos-columnas">
-          <div class="field-block">
-            <label for="marca">Marca <span class="opcional">(opcional)</span></label>
-            <input type="text" id="marca" maxlength="80" placeholder="Ej: Coca-Cola" />
-          </div>
-          <div class="field-block">
-            <label for="detalle">Detalle <span class="opcional">(opcional)</span></label>
-            <input type="text" id="detalle" maxlength="100" placeholder="Ej: 1.5 L" />
-          </div>
-        </div>
-
-        <div class="field-block">
-          <label for="rubro">🏷️ Rubro</label>
-          <select id="rubro">
-            ${RUBROS.map((r) => `<option value="${r}">${r}</option>`).join("")}
-          </select>
-        </div>
-
-        <div class="dos-columnas">
-          <div class="field-block">
-            <label for="precio">💰 Precio</label>
-            <div class="money-input" id="moneyBox">
-              <span class="money-symbol">$</span>
-              <input type="text" id="precio" inputmode="decimal" placeholder="0" autocomplete="off" />
-            </div>
-          </div>
-          <div class="field-block">
-            <label for="cantidad">📦 Cantidad en stock</label>
-            <input type="number" id="cantidad" inputmode="numeric" min="0" step="1" placeholder="0" />
-          </div>
-        </div>
-
-        <div id="msg" class="message"></div>
-
-        <button type="submit" class="btn btn-primary btn-grande" id="btnGuardar">
-          ✅ Guardar producto
-        </button>
-        <button type="button" class="btn btn-ghost btn-block" id="btnLimpiar">Limpiar y cargar otro</button>
-      </form>
-    </section>
+    <div class="alta-cta">
+      <button type="button" class="btn btn-primary btn-grande btn-block btn-alta" id="btnAbrirAlta">
+        ➕ Agregar producto
+      </button>
+      <div id="altaMsg" class="message"></div>
+    </div>
 
     <h3 class="section-title">Mis productos (<span id="contadorProd">0</span>)</h3>
     <div class="filtros-stock">
@@ -113,19 +75,21 @@ import { escaparHTML } from "./utils/html.js";
     <section class="lista-productos" id="listaProductos"></section>
     <div id="listaVacia" class="empty-state" hidden>Todavía no cargaste productos.</div>
 
-    <!-- MODAL: ¿tiene fecha de vencimiento? (siempre, antes de guardar) -->
-    <div class="modal-overlay" id="modalVencimiento">
-      <div class="modal-card">
-        <div class="modal-icono">📅</div>
-        <h2 class="modal-titulo">¿Este producto tiene fecha de vencimiento?</h2>
-        <p class="modal-texto">Si la tiene, la cargamos para avisarte antes de que se venza.</p>
-        <div class="field-block" id="bloqueFechaModal" hidden style="margin-top:1rem">
-          <label for="fechaModalVenc">📅 Fecha de vencimiento</label>
-          <input type="date" id="fechaModalVenc" />
+    <!-- ASISTENTE de alta (wizard) -->
+    <div class="modal-overlay" id="modalAlta">
+      <div class="modal-card modal-card-form wizard">
+        <div class="wizard-top">
+          <div class="wizard-progress"><div class="wizard-bar" id="wizBar"></div></div>
+          <button type="button" class="modal-cerrar" id="wizCerrar" aria-label="Cerrar">✕</button>
         </div>
-        <div class="modal-acciones">
-          <button type="button" class="btn btn-primary btn-grande" id="btnVencSi">📅 Sí, tiene vencimiento</button>
-          <button type="button" class="btn btn-ghost" id="btnVencNo">No tiene vencimiento</button>
+        <div class="wizard-paso-info" id="wizPasoInfo"></div>
+        <h2 class="wizard-titulo" id="wizTitulo"></h2>
+        <p class="wizard-sub" id="wizSub"></p>
+        <div class="wizard-body" id="wizBody"></div>
+        <div id="wizMsg" class="message"></div>
+        <div class="wizard-footer">
+          <button type="button" class="btn btn-ghost" id="wizAtras">← Atrás</button>
+          <button type="button" class="btn btn-primary btn-grande" id="wizSiguiente">Siguiente →</button>
         </div>
       </div>
     </div>
@@ -200,28 +164,28 @@ import { escaparHTML } from "./utils/html.js";
 
   montarLayout({ activo: "inventario", perfil, contenido });
 
-  // --- Referencias ---
-  const estado = document.getElementById("estadoCarga");
-  const form = document.getElementById("formProducto");
-  const codigoBarras = document.getElementById("codigoBarras");
-  const btnEscanear = document.getElementById("btnEscanear");
-  const nombre = document.getElementById("nombre");
-  const marca = document.getElementById("marca");
-  const detalle = document.getElementById("detalle");
-  const rubro = document.getElementById("rubro");
-  const precio = document.getElementById("precio");
-  const moneyBox = document.getElementById("moneyBox");
-  const cantidad = document.getElementById("cantidad");
-  const msg = document.getElementById("msg");
-  const btn = document.getElementById("btnGuardar");
-  const btnLimpiar = document.getElementById("btnLimpiar");
+  // --- Referencias generales ---
+  const altaMsg = document.getElementById("altaMsg");
+  const buscador = document.getElementById("buscador");
+  const filtroRubro = document.getElementById("filtroRubro");
+  const lista = document.getElementById("listaProductos");
+  const listaVacia = document.getElementById("listaVacia");
+  const contador = document.getElementById("contadorProd");
 
-  const modalVencimiento = document.getElementById("modalVencimiento");
-  const bloqueFechaModal = document.getElementById("bloqueFechaModal");
-  const fechaModalVenc = document.getElementById("fechaModalVenc");
-  const btnVencSi = document.getElementById("btnVencSi");
-  const btnVencNo = document.getElementById("btnVencNo");
+  // --- Referencias del asistente ---
+  const modalAlta = document.getElementById("modalAlta");
+  const btnAbrirAlta = document.getElementById("btnAbrirAlta");
+  const wizBar = document.getElementById("wizBar");
+  const wizPasoInfo = document.getElementById("wizPasoInfo");
+  const wizTitulo = document.getElementById("wizTitulo");
+  const wizSub = document.getElementById("wizSub");
+  const wizBody = document.getElementById("wizBody");
+  const wizMsg = document.getElementById("wizMsg");
+  const wizAtras = document.getElementById("wizAtras");
+  const wizSiguiente = document.getElementById("wizSiguiente");
+  const wizCerrar = document.getElementById("wizCerrar");
 
+  // --- Referencias de edición ---
   const modalEditar = document.getElementById("modalEditar");
   const editCodigo = document.getElementById("editCodigo");
   const editNombre = document.getElementById("editNombre");
@@ -239,161 +203,233 @@ import { escaparHTML } from "./utils/html.js";
   const btnEditarEscanear = document.getElementById("btnEditarEscanear");
   const btnEditarGuardar = document.getElementById("btnEditarGuardar");
 
-  const buscador = document.getElementById("buscador");
-  const filtroRubro = document.getElementById("filtroRubro");
-  const lista = document.getElementById("listaProductos");
-  const listaVacia = document.getElementById("listaVacia");
-  const contador = document.getElementById("contadorProd");
-
   let productos = [];
   let editandoId = null;
-  let vencimientoDecidido = false; // ¿ya respondió el modal de vencimiento?
-  let tieneVencimiento = false;
-  let fechaVencimientoElegida = "";
 
-  // ---------- Helpers de UI ----------
-  function mostrarMensaje(texto, tipo) {
-    msg.textContent = texto;
-    msg.className = `message message-${tipo}`;
-  }
-  function mostrarEstado(texto) {
-    estado.innerHTML = texto ? `<span class="spinner"></span> ${texto}` : "";
-    estado.style.display = texto ? "flex" : "none";
-  }
-  function limpiarFormulario() {
-    form.reset();
-    codigoBarras.value = "";
-    vencimientoDecidido = false;
-    tieneVencimiento = false;
-    fechaVencimientoElegida = "";
-    cerrarModalVencimiento();
-    mostrarMensaje("", "");
+  // =====================================================
+  //  ASISTENTE DE ALTA (wizard)
+  // =====================================================
+  let paso = 0;
+  let datos = nuevoBorrador();
+
+  function nuevoBorrador() {
+    return {
+      codigo: "", nombre: "", marca: "", detalle: "",
+      rubro: "", precio: "", cantidad: "",
+      tieneVenc: false, fecha: "",
+    };
   }
 
-  precio.addEventListener("focus", () => moneyBox.classList.add("focus"));
-  precio.addEventListener("blur", () => moneyBox.classList.remove("focus"));
-  btnLimpiar.addEventListener("click", () => { limpiarFormulario(); codigoBarras.focus(); });
+  function abrirWizard() {
+    datos = nuevoBorrador();
+    paso = 0;
+    altaMsg.textContent = "";
+    modalAlta.classList.add("abierto");
+    pintarPaso();
+  }
+  function cerrarWizard() {
+    modalAlta.classList.remove("abierto");
+  }
+  btnAbrirAlta.addEventListener("click", abrirWizard);
+  wizCerrar.addEventListener("click", cerrarWizard);
+  modalAlta.addEventListener("click", (e) => {
+    if (e.target === modalAlta) cerrarWizard();
+  });
 
-  // ---------- Escanear / completar por código de barras ----------
-  btnEscanear.addEventListener("click", () => escanearYcompletar());
+  function mostrarWizMsg(texto) {
+    wizMsg.textContent = texto || "";
+    wizMsg.className = texto ? "message message-error" : "message";
+  }
 
-  async function escanearYcompletar() {
+  function pintarPaso() {
+    const p = PASOS[paso];
+    mostrarWizMsg("");
+    wizBar.style.width = `${((paso + 1) / TOTAL) * 100}%`;
+    wizPasoInfo.textContent = `Paso ${paso + 1} de ${TOTAL}`;
+    wizTitulo.textContent = p.titulo;
+    wizSub.textContent = p.sub;
+    wizAtras.style.visibility = paso === 0 ? "hidden" : "visible";
+    wizSiguiente.textContent = paso === TOTAL - 1 ? "✅ Guardar producto" : "Siguiente →";
+
+    if (p.tipo === "codigo") {
+      wizBody.innerHTML = `
+        <div class="codigo-row">
+          <input type="text" id="wizInput" inputmode="numeric" placeholder="Escaneá o escribí el código" value="${escaparHTML(datos.codigo)}" />
+          <button type="button" class="btn btn-primary" id="wizEscanear">📷 Escanear</button>
+        </div>`;
+      document.getElementById("wizEscanear").addEventListener("click", escanearEnWizard);
+    } else if (p.tipo === "rubro") {
+      wizBody.innerHTML = `
+        <div class="rubro-grid">
+          ${RUBROS.map((r) => `
+            <button type="button" class="rubro-opcion ${r === datos.rubro ? "sel" : ""}" data-rubro="${escaparHTML(r)}">
+              ${escaparHTML(r)}
+            </button>`).join("")}
+        </div>`;
+      wizBody.querySelectorAll("[data-rubro]").forEach((b) => {
+        b.addEventListener("click", () => {
+          datos.rubro = b.dataset.rubro;
+          // Selección + avance automático (más ágil).
+          avanzar();
+        });
+      });
+    } else if (p.tipo === "vencimiento") {
+      wizBody.innerHTML = `
+        <div class="venc-opciones">
+          <button type="button" class="venc-opcion ${datos.tieneVenc ? "sel" : ""}" id="vencSi">📅 Sí, tiene</button>
+          <button type="button" class="venc-opcion ${!datos.tieneVenc ? "sel" : ""}" id="vencNo">🚫 No tiene</button>
+        </div>
+        <div class="field-block" id="wizFechaBlock" ${datos.tieneVenc ? "" : "hidden"} style="margin-top:1rem">
+          <label for="wizFecha">📅 Fecha de vencimiento</label>
+          <input type="date" id="wizFecha" value="${escaparHTML(datos.fecha)}" />
+        </div>`;
+      const vencSi = document.getElementById("vencSi");
+      const vencNo = document.getElementById("vencNo");
+      const fechaBlock = document.getElementById("wizFechaBlock");
+      vencSi.addEventListener("click", () => {
+        datos.tieneVenc = true;
+        vencSi.classList.add("sel"); vencNo.classList.remove("sel");
+        fechaBlock.hidden = false;
+        document.getElementById("wizFecha").focus();
+      });
+      vencNo.addEventListener("click", () => {
+        datos.tieneVenc = false;
+        datos.fecha = "";
+        vencNo.classList.add("sel"); vencSi.classList.remove("sel");
+        fechaBlock.hidden = true;
+      });
+    } else {
+      // texto / precio / cantidad
+      const tipoInput = p.tipo === "precio" ? "text" : p.tipo === "cantidad" ? "number" : "text";
+      const inputmode = p.tipo === "precio" ? "decimal" : p.tipo === "cantidad" ? "numeric" : "text";
+      const min = p.tipo === "cantidad" ? `min="0" step="1"` : "";
+      const valor = escaparHTML(datos[p.key] || "");
+      if (p.tipo === "precio") {
+        wizBody.innerHTML = `
+          <div class="money-input focus">
+            <span class="money-symbol">$</span>
+            <input type="text" id="wizInput" inputmode="decimal" placeholder="${p.placeholder || ""}" autocomplete="off" value="${valor}" />
+          </div>`;
+      } else {
+        wizBody.innerHTML = `
+          <input class="wiz-input-grande" type="${tipoInput}" id="wizInput" inputmode="${inputmode}" ${min}
+            maxlength="100" placeholder="${p.placeholder || ""}" value="${valor}" />`;
+      }
+      const inp = document.getElementById("wizInput");
+      inp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); avanzar(); }
+      });
+    }
+
+    // Enfocar el primer campo (si hay).
+    const primerInput = document.getElementById("wizInput") || document.getElementById("wizFecha");
+    if (primerInput) setTimeout(() => primerInput.focus(), 50);
+  }
+
+  function leerPasoActual() {
+    const p = PASOS[paso];
+    const inp = document.getElementById("wizInput");
+    if (inp) datos[p.key] = inp.value;
+    if (p.tipo === "vencimiento") {
+      const f = document.getElementById("wizFecha");
+      if (f) datos.fecha = f.value;
+    }
+  }
+
+  function validarPasoActual() {
+    const p = PASOS[paso];
+    if (p.key === "nombre" && !datos.nombre.trim()) return "Escribí el nombre del producto.";
+    if (p.key === "rubro" && !datos.rubro) return "Tocá un rubro para continuar.";
+    if (p.key === "precio") {
+      const n = parsearMonto(datos.precio);
+      if (datos.precio === "" || isNaN(n) || n < 0) return "Poné un precio válido. 💰";
+    }
+    if (p.key === "cantidad") {
+      const n = Number(datos.cantidad);
+      if (datos.cantidad !== "" && (isNaN(n) || n < 0)) return "Poné una cantidad válida.";
+    }
+    if (p.key === "vencimiento" && datos.tieneVenc && !datos.fecha) {
+      return "📅 Marcaste que vence: poné la fecha.";
+    }
+    return null;
+  }
+
+  async function avanzar() {
+    leerPasoActual();
+    const error = validarPasoActual();
+    if (error) return mostrarWizMsg(error);
+    if (paso === TOTAL - 1) return guardarDesdeWizard();
+    paso++;
+    pintarPaso();
+  }
+  function retroceder() {
+    leerPasoActual();
+    if (paso > 0) { paso--; pintarPaso(); }
+  }
+  wizSiguiente.addEventListener("click", avanzar);
+  wizAtras.addEventListener("click", retroceder);
+
+  async function escanearEnWizard() {
     const codigo = await escanearCodigo();
     if (!codigo) return;
-    codigoBarras.value = codigo;
-    // Si todavía no tiene nombre, buscamos en el catálogo gratuito.
-    if (!nombre.value.trim()) {
-      mostrarEstado("Buscando el producto en el catálogo...");
+    datos.codigo = codigo;
+    const inp = document.getElementById("wizInput");
+    if (inp) inp.value = codigo;
+    // Si todavía no hay nombre, intentamos completar desde el catálogo gratuito.
+    if (!datos.nombre.trim()) {
+      mostrarWizMsg("");
+      wizMsg.className = "message message-success";
+      wizMsg.textContent = "Buscando en el catálogo...";
       try {
         const r = await buscarPorCodigoBarras(codigo);
         if (r && (r.nombre || r.marca)) {
-          nombre.value = r.nombre || "";
-          marca.value = r.marca || "";
-          detalle.value = r.detalle || "";
-          mostrarMensaje("✅ Producto encontrado. Revisá los datos, elegí el rubro y poné precio y cantidad.", "success");
+          datos.nombre = r.nombre || "";
+          datos.marca = r.marca || "";
+          datos.detalle = r.detalle || "";
+          wizMsg.textContent = "✅ ¡Encontrado! Ya completé nombre y marca. Tocá Siguiente para revisarlos.";
         } else {
-          mostrarMensaje("Código guardado. No estaba en el catálogo: completá los datos a mano. 🙂", "success");
+          wizMsg.textContent = "Código guardado. Completá los datos a mano. 🙂";
         }
       } catch (_) {
-        mostrarMensaje("Código guardado. Completá los datos a mano. 🙂", "success");
-      } finally {
-        mostrarEstado("");
+        wizMsg.textContent = "Código guardado. Completá los datos a mano. 🙂";
       }
-    } else {
-      mostrarMensaje("✅ Código de barras agregado.", "success");
     }
-    (nombre.value ? precio : nombre).focus();
   }
 
-  // ---------- Modal de vencimiento ----------
-  function abrirModalVencimiento() {
-    bloqueFechaModal.hidden = true;
-    fechaModalVenc.value = "";
-    btnVencSi.textContent = "📅 Sí, tiene vencimiento";
-    modalVencimiento.classList.add("abierto");
-  }
-  function cerrarModalVencimiento() {
-    modalVencimiento.classList.remove("abierto");
-  }
-  btnVencSi.addEventListener("click", () => {
-    // Primer toque: muestra el campo de fecha. Segundo toque (con fecha): guarda.
-    if (bloqueFechaModal.hidden) {
-      bloqueFechaModal.hidden = false;
-      btnVencSi.textContent = "✅ Guardar con esta fecha";
-      fechaModalVenc.focus();
-      return;
-    }
-    if (!fechaModalVenc.value) {
-      fechaModalVenc.focus();
-      return;
-    }
-    tieneVencimiento = true;
-    fechaVencimientoElegida = fechaModalVenc.value;
-    vencimientoDecidido = true;
-    btnVencSi.textContent = "📅 Sí, tiene vencimiento";
-    cerrarModalVencimiento();
-    form.requestSubmit();
-  });
-  btnVencNo.addEventListener("click", () => {
-    tieneVencimiento = false;
-    fechaVencimientoElegida = "";
-    vencimientoDecidido = true;
-    btnVencSi.textContent = "📅 Sí, tiene vencimiento";
-    cerrarModalVencimiento();
-    form.requestSubmit();
-  });
-  modalVencimiento.addEventListener("click", (e) => {
-    if (e.target === modalVencimiento) cerrarModalVencimiento();
-  });
-
-  // ---------- Guardar ----------
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    mostrarMensaje("", "");
-
-    const valorPrecio = parsearMonto(precio.value);
-    const valorCantidad = Math.round(Number(cantidad.value) || 0);
-    if (!nombre.value.trim()) return mostrarMensaje("Escribí el nombre del producto.", "error");
-    if (isNaN(valorPrecio) || valorPrecio < 0)
-      return mostrarMensaje("Poné un precio válido. 💰", "error");
-    if (valorCantidad < 0) return mostrarMensaje("La cantidad no puede ser negativa.", "error");
-
-    // Siempre preguntamos por el vencimiento antes de guardar.
-    if (!vencimientoDecidido) {
-      abrirModalVencimiento();
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = "Guardando...";
+  async function guardarDesdeWizard() {
+    const valorPrecio = parsearMonto(datos.precio);
+    const valorCantidad = Math.max(0, Math.round(Number(datos.cantidad) || 0));
+    wizSiguiente.disabled = true;
+    wizSiguiente.textContent = "Guardando...";
     try {
       await agregarProducto({
-        nombre: nombre.value,
-        marca: marca.value,
-        detalle: detalle.value,
+        nombre: datos.nombre,
+        marca: datos.marca,
+        detalle: datos.detalle,
         precio: valorPrecio,
         cantidad: valorCantidad,
-        codigo_barras: codigoBarras.value,
-        rubro: rubro.value,
-        tiene_vencimiento: tieneVencimiento,
-        fecha_vencimiento: fechaVencimientoElegida,
+        codigo_barras: datos.codigo,
+        rubro: datos.rubro,
+        tiene_vencimiento: datos.tieneVenc,
+        fecha_vencimiento: datos.fecha,
         uid: user.uid,
       });
-      mostrarMensaje(`✅ "${nombre.value.trim()}" guardado en ${rubro.value} (${valorCantidad} u.) a ${formatearMoneda(valorPrecio)}.`, "success");
-      limpiarFormulario();
-      codigoBarras.focus();
+      cerrarWizard();
+      altaMsg.className = "message message-success";
+      altaMsg.textContent = `✅ "${datos.nombre.trim()}" guardado en ${datos.rubro} (${valorCantidad} u.) a ${formatearMoneda(valorPrecio)}.`;
       await cargar();
     } catch (err) {
-      mostrarMensaje("⚠️ No se pudo guardar. Probá de nuevo.", "error");
+      mostrarWizMsg("⚠️ No se pudo guardar. Probá de nuevo.");
     } finally {
-      btn.disabled = false;
-      btn.textContent = "✅ Guardar producto";
+      wizSiguiente.disabled = false;
+      wizSiguiente.textContent = "✅ Guardar producto";
     }
-  });
+  }
 
-  // ---------- Editar producto ----------
+  // =====================================================
+  //  EDITAR PRODUCTO
+  // =====================================================
   function tieneVenc(p) {
-    // Compatibilidad con productos viejos (perecedero / tipo_vencimiento).
     return p.tiene_vencimiento === true
       || (p.tiene_vencimiento === undefined
         && (!!p.fecha_vencimiento || p.perecedero === true));
@@ -468,7 +504,8 @@ import { escaparHTML } from "./utils/html.js";
         fecha_vencimiento: editTieneVenc.checked ? editFechaVenc.value : "",
       });
       cerrarEditar();
-      mostrarMensaje("✅ Producto actualizado.", "success");
+      altaMsg.className = "message message-success";
+      altaMsg.textContent = "✅ Producto actualizado.";
       await cargar();
     } catch (err) {
       editMsg.textContent = "⚠️ No se pudo guardar. Probá de nuevo.";
@@ -479,7 +516,9 @@ import { escaparHTML } from "./utils/html.js";
     }
   });
 
-  // ---------- Lista + buscador ----------
+  // =====================================================
+  //  LISTA + BUSCADOR
+  // =====================================================
   function render(items) {
     contador.textContent = productos.length;
     lista.innerHTML = "";
@@ -546,5 +585,4 @@ import { escaparHTML } from "./utils/html.js";
   }
 
   await cargar();
-  codigoBarras.focus();
 })();

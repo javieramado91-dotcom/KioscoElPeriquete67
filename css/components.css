@@ -773,3 +773,114 @@ input[type="checkbox"] {
   text-transform: uppercase;
   opacity: 0.85;
 }
+
+/* ===================== ALTA DE PRODUCTO ===================== */
+.alta-cta { margin-bottom: 22px; }
+.btn-alta {
+  font-size: 1.15rem;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ===================== ASISTENTE (WIZARD) ===================== */
+.wizard { max-width: 440px; text-align: left; }
+.wizard-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.wizard-progress {
+  flex: 1;
+  height: 8px;
+  background: var(--color-bg);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.wizard-bar {
+  height: 100%;
+  width: 12%;
+  background: var(--color-primary);
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.wizard-paso-info {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+.wizard-titulo { font-size: 1.35rem; margin-bottom: 4px; }
+.wizard-sub {
+  color: var(--color-text-muted, #667);
+  font-size: 0.92rem;
+  margin-bottom: 16px;
+}
+.wizard-body { min-height: 96px; }
+.wiz-input-grande {
+  width: 100%;
+  font-size: 1.25rem;
+  padding: 14px 14px;
+  border: 2px solid var(--color-border, #d8dee4);
+  border-radius: var(--radius-md, 12px);
+}
+.wiz-input-grande:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+.wizard-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+}
+.wizard-footer .btn-ghost { flex: 0 0 auto; }
+.wizard-footer .btn-grande { flex: 1; }
+
+/* Grilla de rubros (botones tocables) */
+.rubro-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.rubro-opcion {
+  padding: 14px 10px;
+  border: 2px solid var(--color-border, #d8dee4);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-surface);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.rubro-opcion:hover { border-color: var(--color-primary); }
+.rubro-opcion:active { transform: scale(0.97); }
+.rubro-opcion.sel {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+/* Opciones Sí / No de vencimiento */
+.venc-opciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.venc-opcion {
+  padding: 18px 10px;
+  border: 2px solid var(--color-border, #d8dee4);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-surface);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.08s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.venc-opcion:active { transform: scale(0.97); }
+.venc-opcion.sel {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
