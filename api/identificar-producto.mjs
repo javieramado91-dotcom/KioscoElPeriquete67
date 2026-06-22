@@ -1,9 +1,8 @@
 import { cuerpoDemasiadoGrande, exigirUsuarioAutorizado } from "../api-auth.mjs";
 
 const MODELOS = [
-  "gemini-2.0-flash-lite",
   "gemini-2.5-flash-lite",
-  "gemini-1.5-flash",
+  "gemini-2.0-flash-lite",
 ];
 const TIPOS = ["perecedero", "larga_duracion", "sin_control"];
 const RUBROS = [
