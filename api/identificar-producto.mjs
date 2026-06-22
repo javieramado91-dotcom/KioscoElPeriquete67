@@ -1,6 +1,10 @@
 import { cuerpoDemasiadoGrande, exigirUsuarioAutorizado } from "../api-auth.mjs";
 
-const MODELO = "gemini-2.5-flash-lite";
+const MODELOS = [
+  "gemini-2.0-flash-lite",
+  "gemini-2.5-flash-lite",
+  "gemini-1.5-flash",
+];
 const TIPOS = ["perecedero", "larga_duracion", "sin_control"];
 const RUBROS = [
   "Lácteos", "Fiambres y quesos", "Carnes", "Frutas y verduras", "Panadería",
@@ -55,19 +59,23 @@ export default async function handler(req, res) {
       ] }],
       generationConfig: { responseMimeType: "application/json", temperature: 0.1 },
     };
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${apiKey}`;
-    const respuesta = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cuerpo),
-    });
-    const data = await respuesta.json();
-    if (!respuesta.ok) {
+    let data;
+    let ok = false;
+    for (const modelo of MODELOS) {
+      const url =
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+      const respuesta = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo),
+      });
+      data = await respuesta.json();
+      if (respuesta.ok) { ok = true; break; }
+      if (respuesta.status !== 429) break;
+    }
+    if (!ok) {
       return res.status(502).json({
-        error: respuesta.status === 429
-          ? "La IA alcanzó su límite por un momento. Probá más tarde o cargá a mano."
-          : "La IA no pudo procesar la foto. Probá otra vez o cargá a mano.",
+        error: "La IA no pudo procesar la foto. Probá otra vez o cargá a mano.",
       });
     }
 

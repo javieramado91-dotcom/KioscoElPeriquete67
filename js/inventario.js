@@ -326,14 +326,12 @@ import { escaparHTML } from "./utils/html.js";
   }
   async function clasificarDatosDelFormulario() {
     const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
-    const local = clasificarLocal(texto);
-    if (local) return aplicarClasificacion(local);
-
     mostrarEstado("🤖 Analizando rubro y vencimiento...");
     try {
       aplicarClasificacion(await clasificarProducto(texto));
     } catch (_) {
-      aplicarClasificacion({
+      const local = clasificarLocal(texto);
+      aplicarClasificacion(local || {
         rubro: "Otros",
         tipo_vencimiento: "larga_duracion",
         confianza: 0,
