@@ -1,16 +1,23 @@
 // =============================================================
 //  CONTROLADOR DE CONTROL DE VENCIMIENTOS
 // -------------------------------------------------------------
-//  Muestra los productos perecederos agrupados por estado:
-//  vencidos, vencen esta semana, este mes, en fecha y sin fecha.
-//  Con tarjetas de resumen arriba y buscador.
+//  Muestra los productos con vencimiento agrupados por estado
+//  (vencidos, esta semana, este mes, en fecha y sin fecha) y,
+//  dentro de cada estado, ORDENADOS POR RUBRO. Con tarjetas de
+//  resumen, buscador y filtro por rubro. Le da prioridad a lo
+//  que está por vencer.
 // =============================================================
 
 import { protegerPagina } from "./utils/guards.js";
 import { montarLayout } from "./components/navbar.js";
-import { listarProductos, filtrarPorTexto } from "./services/productos.service.js";
+import {
+  listarProductos,
+  filtrarPorTexto,
+  filtrarPorRubro,
+} from "./services/productos.service.js";
 import { estadoVencimiento, textoDias } from "./utils/vencimientos.js";
 import { fechaLegible } from "./utils/format.js";
+import { RUBROS } from "./utils/rubros.js";
 import { escaparHTML } from "./utils/html.js";
 
 const SECCIONES = [
@@ -20,6 +27,13 @@ const SECCIONES = [
   { clave: "ok", titulo: "🟢 En fecha" },
   { clave: "sinfecha", titulo: "⚪ Sin fecha cargada" },
 ];
+
+// ¿El producto se controla por vencimiento? (compatible con datos viejos)
+function tieneVenc(p) {
+  return p.tiene_vencimiento === true
+    || (p.tiene_vencimiento === undefined
+      && (!!p.fecha_vencimiento || p.perecedero === true));
+}
 
 (async function init() {
   const { perfil } = await protegerPagina();
@@ -45,19 +59,23 @@ const SECCIONES = [
         <div class="stat-value" id="cMes">0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Perecederos totales</div>
+        <div class="stat-label">Con vencimiento</div>
         <div class="stat-value" id="cTotal">0</div>
       </div>
     </section>
 
-    <div class="buscador buscador-grande">
-      <input type="search" id="buscador" placeholder="🔎 Buscar producto perecedero..." />
+    <div class="filtros-stock">
+      <input type="search" id="buscador" placeholder="🔎 Buscar producto..." />
+      <select id="filtroRubro">
+        <option value="todos">🏷️ Todos los rubros</option>
+        ${RUBROS.map((r) => `<option value="${r}">${r}</option>`).join("")}
+      </select>
     </div>
 
     <div id="secciones"></div>
     <div id="vacio" class="empty-state" hidden>
-      Todavía no tenés productos perecederos cargados.
-      Marcá "Este producto vence" al cargar un producto en Stock.
+      No hay productos con vencimiento para mostrar.
+      Cargá productos en Stock y marcá que tienen fecha de vencimiento.
     </div>
   `;
 
@@ -70,13 +88,14 @@ const SECCIONES = [
   const secciones = document.getElementById("secciones");
   const vacio = document.getElementById("vacio");
   const buscador = document.getElementById("buscador");
+  const filtroRubro = document.getElementById("filtroRubro");
 
-  let perecederos = [];
+  let conVencimiento = [];
 
   function render(items) {
-    // --- Tarjetas de resumen (sobre TODOS los perecederos) ---
+    // --- Tarjetas de resumen (sobre TODOS los que tienen vencimiento) ---
     let nVenc = 0, nSemana = 0, nMes = 0;
-    perecederos.forEach((p) => {
+    conVencimiento.forEach((p) => {
       const e = estadoVencimiento(p.fecha_vencimiento);
       if (e.clave === "vencido") nVenc++;
       if (e.dias !== null && e.dias >= 0 && e.dias <= 7) nSemana++;
@@ -85,7 +104,7 @@ const SECCIONES = [
     cVencidos.textContent = nVenc;
     cSemana.textContent = nSemana;
     cMes.textContent = nMes;
-    cTotal.textContent = perecederos.length;
+    cTotal.textContent = conVencimiento.length;
 
     // --- Agrupar items filtrados por estado ---
     const grupos = {};
@@ -98,23 +117,38 @@ const SECCIONES = [
     vacio.hidden = items.length > 0;
 
     SECCIONES.forEach(({ clave, titulo }) => {
-      const lista = grupos[clave];
-      if (!lista || !lista.length) return;
+      const listaSec = grupos[clave];
+      if (!listaSec || !listaSec.length) return;
 
-      // Ordenar por días (más urgente primero).
-      lista.sort((a, b) => (a.e.dias ?? 9e9) - (b.e.dias ?? 9e9));
+      // Dentro del estado: ordenar POR RUBRO y, dentro del rubro, por urgencia.
+      listaSec.sort((a, b) => {
+        const ra = a.p.rubro || "Otros";
+        const rb = b.p.rubro || "Otros";
+        if (ra !== rb) return ra.localeCompare(rb);
+        return (a.e.dias ?? 9e9) - (b.e.dias ?? 9e9);
+      });
 
       const bloque = document.createElement("section");
       bloque.className = "venc-seccion";
-      bloque.innerHTML = `<h3 class="section-title">${titulo} <span class="venc-count">${lista.length}</span></h3>`;
+      bloque.innerHTML = `<h3 class="section-title">${titulo} <span class="venc-count">${listaSec.length}</span></h3>`;
 
-      lista.forEach(({ p, e }) => {
+      let rubroActual = null;
+      listaSec.forEach(({ p, e }) => {
+        const rub = p.rubro || "Otros";
+        if (rub !== rubroActual) {
+          rubroActual = rub;
+          const sub = document.createElement("div");
+          sub.className = "venc-rubro-sub";
+          sub.innerHTML = `🏷️ ${escaparHTML(rub)}`;
+          bloque.appendChild(sub);
+        }
+        const cant = p.cantidad != null ? p.cantidad : 0;
         const item = document.createElement("div");
         item.className = `venc-item venc-${e.clave}`;
         item.innerHTML = `
           <div class="producto-info">
             <div class="producto-nombre">${escaparHTML(p.nombre)}</div>
-            <div class="producto-extra">${escaparHTML([p.marca, p.detalle].filter(Boolean).join(" · ") || "—")}</div>
+            <div class="producto-extra">${escaparHTML([p.marca, p.detalle].filter(Boolean).join(" · ") || "—")} · 📦 ${cant} u.</div>
           </div>
           <div class="venc-derecha">
             <div class="venc-fecha">${p.fecha_vencimiento ? fechaLegible(p.fecha_vencimiento) : "—"}</div>
@@ -128,13 +162,13 @@ const SECCIONES = [
     });
   }
 
-  buscador.addEventListener("input", () => {
-    render(filtrarPorTexto(perecederos, buscador.value));
-  });
+  function aplicar() {
+    render(filtrarPorTexto(filtrarPorRubro(conVencimiento, filtroRubro.value), buscador.value));
+  }
+  buscador.addEventListener("input", aplicar);
+  filtroRubro.addEventListener("change", aplicar);
 
   const todos = await listarProductos();
-  perecederos = todos.filter((p) =>
-    p.perecedero || (p.fecha_vencimiento && p.tipo_vencimiento === "larga_duracion")
-  );
-  render(perecederos);
+  conVencimiento = todos.filter(tieneVenc);
+  render(conVencimiento);
 })();

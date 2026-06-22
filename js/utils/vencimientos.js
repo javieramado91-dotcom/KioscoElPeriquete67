@@ -45,12 +45,12 @@ export function textoDias(dias) {
 }
 
 /**
- * Filtra los productos perecederos que están vencidos o por vencer
- * dentro de `limiteDias` (default 7). Ordenados por urgencia.
+ * Filtra los productos con fecha de vencimiento que están vencidos o por
+ * vencer dentro de `limiteDias` (default 7). Ordenados por urgencia.
  */
 export function productosPorVencer(productos, limiteDias = 7) {
   return productos
-    .filter((p) => p.fecha_vencimiento && p.tipo_vencimiento !== "sin_control")
+    .filter((p) => p.fecha_vencimiento)
     .map((p) => ({ ...p, _dias: diasHastaVencer(p.fecha_vencimiento) }))
     .filter((p) => p._dias !== null && p._dias <= limiteDias)
     .sort((a, b) => a._dias - b._dias);

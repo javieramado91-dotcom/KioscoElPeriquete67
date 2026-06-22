@@ -15,6 +15,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   orderBy,
   serverTimestamp,
@@ -33,46 +34,50 @@ export async function listarProductos() {
 }
 
 /**
- * Agrega un producto nuevo.
+ * Agrega un producto nuevo (carga 100% manual, basada en el código de barras
+ * cuando el producto lo tiene). Guarda toda la info para el control de stock.
  */
 export function agregarProducto({
   nombre,
   marca,
   detalle,
   precio,
+  cantidad,
   codigo_barras,
-  perecedero,
-  tipo_vencimiento,
-  fecha_vencimiento,
   rubro,
-  clasificacion_origen,
-  clasificacion_confianza,
-  clasificacion_razon,
+  tiene_vencimiento,
+  fecha_vencimiento,
   uid,
 }) {
   return addDoc(collection(db, COL), {
     nombre: (nombre || "").trim(),
     marca: (marca || "").trim(),
     detalle: (detalle || "").trim(),
-    precio: Number(precio),
+    precio: Number(precio) || 0,
+    cantidad: Math.max(0, Math.round(Number(cantidad) || 0)),
     codigo_barras: (codigo_barras || "").trim(),
-    perecedero: !!perecedero,
-    tipo_vencimiento: tipo_vencimiento || (perecedero ? "perecedero" : "larga_duracion"),
-    fecha_vencimiento: (fecha_vencimiento || "").trim(),
     rubro: (rubro || "Otros").trim(),
-    clasificacion_origen: (clasificacion_origen || "manual").trim(),
-    clasificacion_confianza: Number(clasificacion_confianza) || 0,
-    clasificacion_razon: (clasificacion_razon || "").trim(),
+    tiene_vencimiento: !!tiene_vencimiento,
+    fecha_vencimiento: tiene_vencimiento ? (fecha_vencimiento || "").trim() : "",
     creado_por: uid,
     fecha_creacion: serverTimestamp(),
   });
 }
 
 /**
- * Actualiza campos de un producto (ej: el precio).
+ * Actualiza campos de un producto. De paso limpia los campos del modelo
+ * viejo (perecedero, tipo_vencimiento, clasificacion_*) si el producto los
+ * tuviera, para que quede consistente con el modelo actual.
  */
 export function actualizarProducto(id, cambios) {
-  return updateDoc(doc(db, COL, id), cambios);
+  return updateDoc(doc(db, COL, id), {
+    ...cambios,
+    perecedero: deleteField(),
+    tipo_vencimiento: deleteField(),
+    clasificacion_origen: deleteField(),
+    clasificacion_confianza: deleteField(),
+    clasificacion_razon: deleteField(),
+  });
 }
 
 /**

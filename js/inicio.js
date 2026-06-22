@@ -51,7 +51,7 @@ import { escaparHTML } from "./utils/html.js";
       <a href="inventario.html" class="module-card">
         <div class="module-icon">📦</div>
         <div class="module-name">Inventario</div>
-        <div class="module-desc">Cargá productos por foto o código.</div>
+        <div class="module-desc">Cargá productos y controlá el stock.</div>
       </a>
       <a href="precios.html" class="module-card">
         <div class="module-icon">🔖</div>

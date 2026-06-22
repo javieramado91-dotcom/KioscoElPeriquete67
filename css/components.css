@@ -748,3 +748,28 @@ input[type="checkbox"] {
   font-size: 0.75rem;
   font-weight: 700;
 }
+
+/* Casilla "tiene vencimiento" en el modal de edición */
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.check-line input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+/* Subtítulo de rubro dentro de cada sección de vencimientos */
+.venc-rubro-sub {
+  margin: 14px 0 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--color-primary-dark);
+  text-transform: uppercase;
+  opacity: 0.85;
+}
