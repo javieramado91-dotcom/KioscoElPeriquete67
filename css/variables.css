@@ -6,17 +6,21 @@
    ============================================================= */
 
 :root {
-  /* Colores de marca (verde despensa / fresco) */
-  --color-primary: #2e9e5b;
-  --color-primary-dark: #1f7a44;
-  --color-primary-light: #e7f6ed;
+  /* Colores de marca (rojo y amarillo) */
+  --color-primary: #e02d2d;
+  --color-primary-dark: #b21f1f;
+  --color-primary-light: #ffe8a3;
 
-  /* Neutros */
-  --color-bg: #f4f6f8;
+  /* Amarillo de acento */
+  --color-accent: #ffc20e;
+  --color-accent-dark: #e0a800;
+
+  /* Neutros (fondo con un leve tono cálido) */
+  --color-bg: #fff8ec;
   --color-surface: #ffffff;
-  --color-text: #1f2a37;
-  --color-muted: #6b7280;
-  --color-border: #e5e7eb;
+  --color-text: #2a1f1f;
+  --color-muted: #7a6b6b;
+  --color-border: #f0e3cf;
 
   /* Estados */
   --color-error: #dc2626;

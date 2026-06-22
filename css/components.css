@@ -800,7 +800,7 @@ input[type="checkbox"] {
 .wizard-bar {
   height: 100%;
   width: 12%;
-  background: var(--color-primary);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
   border-radius: 999px;
   transition: width 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }

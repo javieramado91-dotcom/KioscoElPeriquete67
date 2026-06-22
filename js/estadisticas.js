@@ -224,7 +224,9 @@ import { escaparHTML } from "./utils/html.js";
           {
             label: `Ganancia ${anio}`,
             data: porMes,
-            backgroundColor: "#2e9e5b",
+            backgroundColor: "#ffc20e",
+            borderColor: "#e02d2d",
+            borderWidth: 2,
             borderRadius: 6,
           },
         ],
@@ -252,8 +254,8 @@ import { escaparHTML } from "./utils/html.js";
           {
             label: "Ganancia por año",
             data: anios.map((a) => mapa[a]),
-            borderColor: "#1f7a44",
-            backgroundColor: "rgba(46,158,91,.15)",
+            borderColor: "#e02d2d",
+            backgroundColor: "rgba(224,45,45,.15)",
             fill: true,
             tension: 0.3,
             pointRadius: 5,
