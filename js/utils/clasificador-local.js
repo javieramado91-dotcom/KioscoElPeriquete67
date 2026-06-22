@@ -33,6 +33,9 @@ const REGLAS = [
   { rubro: "Almacén", palabras: ["pan rallado", "rebozador", "pan dulce"] },
   { rubro: "Perfumería e higiene", palabras: ["jabon de tocador", "jabon blanco", "papel higienico"] },
   { rubro: "Limpieza", palabras: ["jabon en polvo", "jabon liquido", "jabon para la ropa"] },
+  // "papas fritas/congeladas" no son verdura: tienen que ganarle a "papa".
+  { rubro: "Golosinas y snacks", palabras: ["papas fritas", "papa frita", "papas pay"] },
+  { rubro: "Congelados", palabras: ["papas congeladas", "papa congelada", "papas bastones", "papas noisette"] },
 
   // --- Lácteos ---
   { rubro: "Lácteos", palabras: ["leche", "yogur", "yoghurt", "manteca", "margarina", "crema de leche", "dulce de leche", "ricota", "postre", "flan listo", "chocolatada", "danonino", "casancrem", "finlandia", "queso untable", "serenisima", "sancor", "ilolay", "milkaut", "actimel", "yogurisimo", "yogkrisimo", "cindor", "chocolada", "leche cultivada", "leche chocolatada"] },
@@ -44,7 +47,7 @@ const REGLAS = [
   { rubro: "Carnes", palabras: ["carne", "pollo", "milanesa", "bife", "asado", "chorizo", "hamburguesa", "pescado", "merluza", "costilla", "molida", "vacio", "matambre", "pata muslo", "suprema", "cerdo", "morcilla", "salchicha", "pechuga", "nalga", "peceto", "roast beef", "cuadril", "osobuco", "carne picada", "tira de asado", "entraña", "lomo"] },
 
   // --- Frutas y verduras ---
-  { rubro: "Frutas y verduras", palabras: ["manzana", "banana", "naranja", "mandarina", "papa", "cebolla", "tomate", "lechuga", "zanahoria", "fruta", "verdura", "palta", "limon", "frutilla", "zapallo", "morron", "ajo", "pera", "uva", "durazno", "ciruela", "choclo fresco", "acelga", "espinaca", "batata", "pepino", "apio", "kiwi", "anana", "melon", "sandia", "brocoli", "coliflor", "remolacha", "calabaza", "mandioca", "puerro", "rucula", "champignon", "jengibre", "repollo"] },
+  { rubro: "Frutas y verduras", palabras: ["manzana", "banana", "naranja", "mandarina", "papa", "cebolla", "tomate", "lechuga", "zanahoria", "fruta", "verdura", "palta", "limon", "frutilla", "zapallo", "morron", "ajo ", "pera", "uva", "durazno", "ciruela", "choclo fresco", "acelga", "espinaca", "batata", "pepino", "apio", "kiwi", "anana", "melon", "sandia", "brocoli", "coliflor", "remolacha", "calabaza", "mandioca", "puerro", "rucula", "champignon", "jengibre", "repollo"] },
 
   // --- Panadería ---
   { rubro: "Panadería", palabras: ["pan ", "pan lactal", "pebete", "factura", "medialuna", "criollo", "bizcocho de grasa", "baguette", "felipe", "figazza", "grisin", "tostada", "pan arabe", "prepizza", "tapa de empanada", "tapa de tarta", "pascualina", "pan de salvado", "facturas"] },
@@ -53,7 +56,7 @@ const REGLAS = [
   { rubro: "Congelados", palabras: ["congelad", "helado", "nuggets", "bastones", "rabas", "papas noisette", "verdura congelada", "pizza congelada", "patitas", "medallon", "hamburguesa congelada", "empanada congelada", "papa congelada"] },
 
   // --- Bebidas alcohólicas ---
-  { rubro: "Bebidas alcohólicas", palabras: ["vino", "cerveza", "fernet", "vodka", "whisky", "whiskey", "gin", "ron", "aperitivo", "champagne", "champan", "sidra", "licor", "vermut", "espumante", "malbec", "quilmes", "brahma", "andes", "stella", "campari", "gancia", "smirnoff", "skyy", "branca", "cynar", "tequila", "heineken", "corona", "schneider", "imperial", "budweiser", "cabernet", "chardonnay", "torrontes"] },
+  { rubro: "Bebidas alcohólicas", palabras: ["vino", "cerveza", "fernet", "vodka", "whisky", "whiskey", "gin ", "ginebra", "ron ", "aperitivo", "champagne", "champan", "sidra", "licor", "vermut", "espumante", "malbec", "quilmes", "brahma", "andes", "stella", "campari", "gancia", "smirnoff", "skyy", "branca", "cynar", "tequila", "heineken", "corona", "schneider", "imperial", "budweiser", "cabernet", "chardonnay", "torrontes"] },
 
   // --- Bebidas ---
   { rubro: "Bebidas", palabras: ["gaseosa", "coca", "sprite", "fanta", "pepsi", "agua", "jugo", "exprimido", "energizante", "speed", "gatorade", "powerade", "soda", "tonica", "isotonica", "amargo", "terma", "manaos", "cunnington", "cepita", "baggio", "red bull", "monster", "levite", "aquarius", "seven up", "mirinda", "villavicencio", "villa del sur", "h2oh", "clight", "tang"] },
