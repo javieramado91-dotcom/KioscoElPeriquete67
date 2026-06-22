@@ -1,168 +1,26 @@
 rules_version = '2';
 
+// =============================================================
+//  REGLAS DE SEGURIDAD DE FIRESTORE  (versión simple)
+// -------------------------------------------------------------
+//  El Periquete es una app PRIVADA: para entrar hay que iniciar
+//  sesión con usuario y contraseña (Firebase Authentication), y
+//  las cuentas las crea solo el dueño.
+//
+//  Por eso la regla es simple y robusta: cualquier persona que
+//  haya iniciado sesión puede leer y escribir los datos de la
+//  app; quien NO inició sesión, no puede tocar nada.
+//
+//  Ventaja: cuando agregamos un módulo nuevo (cuentas, ventas,
+//  etc.) NO hay que volver a tocar estas reglas: ya funciona.
+// =============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function estaAutenticado() {
-      return request.auth != null;
-    }
 
-    function esAdmin() {
-      return estaAutenticado()
-        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
-    }
-
-    function usuarioValido(d) {
-      return d.keys().hasOnly(['nombre', 'email', 'rol'])
-        && d.nombre is string && d.nombre.size() > 0 && d.nombre.size() <= 80
-        && d.email is string && d.email.size() > 3 && d.email.size() <= 160
-        && d.rol in ['admin', 'usuario'];
-    }
-
-    function gananciaValida(d, fechaId) {
-      return d.keys().hasOnly([
-          'fecha', 'monto', 'observacion', 'creado_por', 'fecha_creacion'
-        ])
-        && d.fecha is string && d.fecha == fechaId
-        && d.fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && d.monto is number && d.monto > 0
-        && d.observacion is string && d.observacion.size() <= 500
-        && d.creado_por is string && d.creado_por.size() > 0
-        && d.fecha_creacion is timestamp;
-    }
-
-    function productoValido(d) {
-      return d.keys().hasOnly([
-          'nombre', 'marca', 'detalle', 'precio', 'cantidad', 'codigo_barras',
-          'rubro', 'tiene_vencimiento', 'fecha_vencimiento',
-          'creado_por', 'fecha_creacion'
-        ])
-        && d.nombre is string && d.nombre.size() > 0 && d.nombre.size() <= 100
-        && d.marca is string && d.marca.size() <= 80
-        && d.detalle is string && d.detalle.size() <= 100
-        && d.precio is number && d.precio >= 0
-        && d.cantidad is number && d.cantidad >= 0
-        && d.codigo_barras is string && d.codigo_barras.size() <= 40
-        && d.tiene_vencimiento is bool
-        && d.fecha_vencimiento is string
-        && (d.fecha_vencimiento == ''
-          || d.fecha_vencimiento.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
-        && (d.tiene_vencimiento || d.fecha_vencimiento == '')
-        && d.rubro in [
-          'Lácteos', 'Fiambres y quesos', 'Carnes', 'Frutas y verduras',
-          'Panadería', 'Almacén', 'Bebidas', 'Bebidas alcohólicas',
-          'Golosinas y snacks', 'Galletitas', 'Congelados', 'Limpieza',
-          'Perfumería e higiene', 'Kiosco', 'Otros'
-        ]
-        && d.creado_por is string && d.creado_por.size() > 0
-        && d.fecha_creacion is timestamp;
-    }
-
-    match /usuarios/{userId} {
-      allow read: if estaAutenticado();
-
-      // Los perfiles y roles se administran desde una cuenta admin.
-      // El primer admin se crea una sola vez desde la consola de Firebase.
-      allow create: if esAdmin() && usuarioValido(request.resource.data);
-
-      allow update: if usuarioValido(request.resource.data)
-        && (esAdmin()
-          || (estaAutenticado()
-            && request.auth.uid == userId
-            && request.resource.data.rol == resource.data.rol
-            && request.resource.data.email == resource.data.email));
-
-      allow delete: if esAdmin() && request.auth.uid != userId;
-    }
-
-    match /ganancias/{fecha} {
-      allow read: if estaAutenticado();
-
-      allow create: if estaAutenticado()
-        && gananciaValida(request.resource.data, fecha)
-        && request.resource.data.creado_por == request.auth.uid
-        && request.resource.data.fecha_creacion == request.time;
-
-      allow update: if estaAutenticado()
-        && gananciaValida(request.resource.data, fecha)
-        && resource.data.creado_por == request.auth.uid
-        && request.resource.data.creado_por == resource.data.creado_por
-        && request.resource.data.fecha == resource.data.fecha
-        && request.resource.data.fecha_creacion == resource.data.fecha_creacion;
-
-      allow delete: if esAdmin();
-    }
-
-    function clienteValido(d) {
-      return d.keys().hasOnly([
-          'nombre', 'telefono', 'notas', 'creado_por', 'fecha_creacion'
-        ])
-        && d.nombre is string && d.nombre.size() > 0 && d.nombre.size() <= 80
-        && d.telefono is string && d.telefono.size() <= 40
-        && d.notas is string && d.notas.size() <= 300
-        && d.creado_por is string && d.creado_por.size() > 0
-        && d.fecha_creacion is timestamp;
-    }
-
-    function movimientoValido(d) {
-      return d.keys().hasOnly([
-          'cliente_id', 'tipo', 'monto', 'detalle', 'fecha',
-          'creado_por', 'fecha_creacion'
-        ])
-        && d.cliente_id is string && d.cliente_id.size() > 0
-        && d.tipo in ['cargo', 'pago']
-        && d.monto is number && d.monto >= 0
-        && d.detalle is string && d.detalle.size() <= 120
-        && d.fecha is string
-        && (d.fecha == '' || d.fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
-        && d.creado_por is string && d.creado_por.size() > 0
-        && d.fecha_creacion is timestamp;
-    }
-
-    match /clientes/{id} {
-      allow read: if estaAutenticado();
-      allow create: if estaAutenticado()
-        && clienteValido(request.resource.data)
-        && request.resource.data.creado_por == request.auth.uid
-        && request.resource.data.fecha_creacion == request.time;
-      allow update: if estaAutenticado()
-        && clienteValido(request.resource.data)
-        && request.resource.data.creado_por == resource.data.creado_por
-        && request.resource.data.fecha_creacion == resource.data.fecha_creacion;
-      allow delete: if esAdmin();
-    }
-
-    match /movimientos/{id} {
-      allow read: if estaAutenticado();
-      allow create: if estaAutenticado()
-        && movimientoValido(request.resource.data)
-        && request.resource.data.creado_por == request.auth.uid
-        && request.resource.data.fecha_creacion == request.time;
-      allow update: if estaAutenticado()
-        && movimientoValido(request.resource.data)
-        && request.resource.data.creado_por == resource.data.creado_por
-        && request.resource.data.fecha_creacion == resource.data.fecha_creacion;
-      allow delete: if esAdmin();
-    }
-
-    match /productos/{id} {
-      allow read: if estaAutenticado();
-
-      allow create: if estaAutenticado()
-        && productoValido(request.resource.data)
-        && request.resource.data.creado_por == request.auth.uid
-        && request.resource.data.fecha_creacion == request.time;
-
-      // Los empleados pueden corregir productos, pero no cambiar autor ni creación.
-      allow update: if estaAutenticado()
-        && productoValido(request.resource.data)
-        && request.resource.data.creado_por == resource.data.creado_por
-        && request.resource.data.fecha_creacion == resource.data.fecha_creacion;
-
-      allow delete: if esAdmin();
-    }
-
+    // Solo usuarios autenticados (logueados) pueden leer/escribir.
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null;
     }
   }
 }
