@@ -24,6 +24,7 @@ const MENU = [
   { id: "ganancias", label: "Ingresar Ganancias", corto: "Cargar", icono: "💵", href: "ganancias.html" },
   { id: "inventario", label: "Inventario", corto: "Stock", icono: "📦", href: "inventario.html" },
   { id: "precios", label: "Consultar Precios", corto: "Precios", icono: "🔖", href: "precios.html" },
+  { id: "cuentas", label: "Cuentas Corrientes", corto: "Cuentas", icono: "🧾", href: "cuentas.html", bottom: false },
   { id: "vencimientos", label: "Vencimientos", corto: "Vencim.", icono: "📅", href: "vencimientos.html", bottom: false },
   { id: "estadisticas", label: "Estadísticas", corto: "Resumen", icono: "📊", href: "estadisticas.html" },
   // Próximamente: Gastos, Ventas, Caja, Proveedores...

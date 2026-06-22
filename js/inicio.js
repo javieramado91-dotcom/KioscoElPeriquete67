@@ -58,6 +58,11 @@ import { escaparHTML } from "./utils/html.js";
         <div class="module-name">Precios</div>
         <div class="module-desc">Consultá precios al instante.</div>
       </a>
+      <a href="cuentas.html" class="module-card">
+        <div class="module-icon">🧾</div>
+        <div class="module-name">Cuentas corrientes</div>
+        <div class="module-desc">Controlá el fiado de tus clientes.</div>
+      </a>
       <a href="vencimientos.html" class="module-card">
         <div class="module-icon">📅</div>
         <div class="module-name">Vencimientos</div>

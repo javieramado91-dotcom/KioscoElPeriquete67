@@ -92,6 +92,58 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
+    function clienteValido(d) {
+      return d.keys().hasOnly([
+          'nombre', 'telefono', 'notas', 'creado_por', 'fecha_creacion'
+        ])
+        && d.nombre is string && d.nombre.size() > 0 && d.nombre.size() <= 80
+        && d.telefono is string && d.telefono.size() <= 40
+        && d.notas is string && d.notas.size() <= 300
+        && d.creado_por is string && d.creado_por.size() > 0
+        && d.fecha_creacion is timestamp;
+    }
+
+    function movimientoValido(d) {
+      return d.keys().hasOnly([
+          'cliente_id', 'tipo', 'monto', 'detalle', 'fecha',
+          'creado_por', 'fecha_creacion'
+        ])
+        && d.cliente_id is string && d.cliente_id.size() > 0
+        && d.tipo in ['cargo', 'pago']
+        && d.monto is number && d.monto >= 0
+        && d.detalle is string && d.detalle.size() <= 120
+        && d.fecha is string
+        && (d.fecha == '' || d.fecha.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
+        && d.creado_por is string && d.creado_por.size() > 0
+        && d.fecha_creacion is timestamp;
+    }
+
+    match /clientes/{id} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado()
+        && clienteValido(request.resource.data)
+        && request.resource.data.creado_por == request.auth.uid
+        && request.resource.data.fecha_creacion == request.time;
+      allow update: if estaAutenticado()
+        && clienteValido(request.resource.data)
+        && request.resource.data.creado_por == resource.data.creado_por
+        && request.resource.data.fecha_creacion == resource.data.fecha_creacion;
+      allow delete: if esAdmin();
+    }
+
+    match /movimientos/{id} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado()
+        && movimientoValido(request.resource.data)
+        && request.resource.data.creado_por == request.auth.uid
+        && request.resource.data.fecha_creacion == request.time;
+      allow update: if estaAutenticado()
+        && movimientoValido(request.resource.data)
+        && request.resource.data.creado_por == resource.data.creado_por
+        && request.resource.data.fecha_creacion == resource.data.fecha_creacion;
+      allow delete: if esAdmin();
+    }
+
     match /productos/{id} {
       allow read: if estaAutenticado();
 
