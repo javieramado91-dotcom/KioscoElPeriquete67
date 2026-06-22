@@ -149,9 +149,9 @@ import { escaparHTML } from "./utils/html.js";
       render(encontrados);
       if (!encontrados.length)
         mostrarMensaje(`Reconocí "${termino}", pero no está en tu inventario.`, "error");
-    } catch (err) {
+    } catch (_) {
       mostrarEstado("");
-      mostrarMensaje("⚠️ " + err.message, "error");
+      mostrarMensaje("📷 La búsqueda por foto no está disponible por ahora. Buscá escribiendo el nombre o escaneá el código de barras. 🙂", "error");
     }
   });
 

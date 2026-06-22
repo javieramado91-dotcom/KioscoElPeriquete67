@@ -351,23 +351,18 @@ import { escaparHTML } from "./utils/html.js";
       confianza + (clasificacionActual.razon || "Revisá estas opciones.");
     actualizarCampoVencimiento();
   }
-  async function clasificarDatosDelFormulario() {
+  function clasificarDatosDelFormulario() {
+    // Motor principal: clasificador local (gratis, instantáneo, sin límites).
+    // Reconoce la mayoría de los productos de despensa por su nombre.
     const texto = [nombre.value, marca.value, detalle.value].filter(Boolean).join(" ");
-    mostrarEstado("🤖 Analizando rubro y vencimiento...");
-    try {
-      aplicarClasificacion(await clasificarProducto(texto));
-    } catch (_) {
-      const local = clasificarLocal(texto);
-      aplicarClasificacion(local || {
-        rubro: "Otros",
-        tipo_vencimiento: "larga_duracion",
-        confianza: 0,
-        razon: "No pudimos clasificarlo automáticamente. Revisá estas opciones.",
-        origen: "correccion_usuario",
-      });
-    } finally {
-      mostrarEstado("");
-    }
+    const local = clasificarLocal(texto);
+    aplicarClasificacion(local || {
+      rubro: "Otros",
+      tipo_vencimiento: "larga_duracion",
+      confianza: 0,
+      razon: "No lo reconocí solo. Elegí el rubro y, si vence, marcá el vencimiento. 👇",
+      origen: "manual",
+    });
   }
   function abrirModalCodigo() {
     modalCodigo.classList.add("abierto");
@@ -457,8 +452,8 @@ import { escaparHTML } from "./utils/html.js";
           mostrarMensaje(`✅ Reconocido (${rubroActual}). Revisá los datos y poné el precio.`, "success");
         }
       }
-    } catch (err) {
-      mostrarMensaje("⚠️ " + err.message, "error");
+    } catch (_) {
+      mostrarMensaje("📷 El reconocimiento por foto no está disponible por ahora. Cargá el producto a mano o con el código de barras (es más rápido). 🙂", "error");
     } finally {
       mostrarEstado("");
       precio.focus();
