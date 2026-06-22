@@ -1,10 +1,11 @@
 // =============================================================
-//  CONTROLADOR DE CUENTAS CORRIENTES (fiado)
+//  CONTROLADOR DE CUENTAS CORRIENTES (fiado) — versión completa
 // -------------------------------------------------------------
-//  - Lista de clientes con su saldo (lo que deben).
-//  - Resumen: total a cobrar y cuántos deben.
-//  - Detalle de cada cliente: historial de deudas (cargos) y
-//    pagos, con la posibilidad de cargar nuevos movimientos.
+//  - Lista de clientes con avatar, saldo y última actividad.
+//  - Resumen, buscador, filtros (todos / deben / al día) y orden.
+//  - Detalle del cliente: saldo grande, totales, acciones rápidas
+//    (fiar, cobrar, saldar cuenta, recordatorio por WhatsApp),
+//    e historial con saldo corriente.
 // =============================================================
 
 import { protegerPagina } from "./utils/guards.js";
@@ -18,10 +19,33 @@ import {
   listarMovimientos,
   agregarMovimiento,
   eliminarMovimiento,
-  calcularSaldos,
 } from "./services/cuentas.service.js";
 import { formatearMoneda, parsearMonto, hoyISO, fechaLegible } from "./utils/format.js";
 import { escaparHTML } from "./utils/html.js";
+
+const PALETA = ["#e02d2d", "#d97706", "#0891b2", "#7c3aed", "#15803d", "#be185d", "#2563eb", "#b45309"];
+
+function inicial(nombre) { return (nombre || "?").trim().charAt(0).toUpperCase() || "?"; }
+function colorAvatar(nombre) {
+  let h = 0;
+  for (const ch of (nombre || "")) h = (h + ch.charCodeAt(0)) % PALETA.length;
+  return PALETA[h];
+}
+function msAt(m) {
+  const t = m.fecha_creacion;
+  if (t && typeof t.toMillis === "function") return t.toMillis();
+  if (t && t.seconds) return t.seconds * 1000;
+  return 0;
+}
+// Link de WhatsApp (Argentina): deja el mensaje listo, el usuario lo envía.
+function waLink(telefono, texto) {
+  let d = (telefono || "").replace(/\D/g, "");
+  if (!d) return null;
+  if (d.startsWith("0")) d = d.slice(1);
+  if (d.startsWith("15")) d = d.slice(2); // saca el 15 local
+  if (!d.startsWith("54")) d = "549" + d;
+  return `https://wa.me/${d}?text=${encodeURIComponent(texto)}`;
+}
 
 (async function init() {
   const { user, perfil } = await protegerPagina();
@@ -31,7 +55,7 @@ import { escaparHTML } from "./utils/html.js";
   contenido.innerHTML = `
     <header class="page-header">
       <h1>🧾 Cuentas corrientes</h1>
-      <p class="muted">Controlá lo que te deben tus clientes (fiado).</p>
+      <p class="muted">Controlá el fiado de tus clientes: quién te debe y cuánto.</p>
     </header>
 
     <section class="grid-stats">
@@ -56,13 +80,23 @@ import { escaparHTML } from "./utils/html.js";
       <div id="altaMsg" class="message"></div>
     </div>
 
-    <div class="buscador buscador-grande">
-      <input type="search" id="buscador" placeholder="🔎 Buscar cliente..." />
+    <div class="cuentas-toolbar">
+      <input type="search" id="buscador" class="cuentas-search" placeholder="🔎 Buscar cliente..." />
+      <div class="filtro-chips" id="filtroChips">
+        <button type="button" class="chip sel" data-filtro="todos">Todos</button>
+        <button type="button" class="chip" data-filtro="deben">Deben</button>
+        <button type="button" class="chip" data-filtro="aldia">Al día</button>
+      </div>
+      <select id="orden" class="cuentas-orden">
+        <option value="deuda">Ordenar: más deuda</option>
+        <option value="nombre">Ordenar: nombre A-Z</option>
+        <option value="reciente">Ordenar: actividad reciente</option>
+      </select>
     </div>
 
-    <section class="lista-productos" id="listaClientes"></section>
+    <section class="lista-clientes" id="listaClientes"></section>
     <div id="listaVacia" class="empty-state" hidden>
-      Todavía no cargaste clientes. Tocá "➕ Nuevo cliente" para empezar.
+      No hay clientes para mostrar. Tocá "➕ Nuevo cliente" para empezar.
     </div>
 
     <!-- MODAL: nuevo / editar cliente -->
@@ -78,7 +112,7 @@ import { escaparHTML } from "./utils/html.js";
             <input type="text" id="clNombre" maxlength="80" placeholder="Ej: María González" />
           </div>
           <div class="field-block">
-            <label for="clTelefono">📞 Teléfono <span class="opcional">(opcional)</span></label>
+            <label for="clTelefono">📞 Teléfono <span class="opcional">(para WhatsApp)</span></label>
             <input type="text" id="clTelefono" maxlength="40" inputmode="tel" placeholder="Ej: 11 5555-5555" />
           </div>
           <div class="field-block">
@@ -94,26 +128,36 @@ import { escaparHTML } from "./utils/html.js";
       </div>
     </div>
 
-    <!-- MODAL: detalle de cuenta del cliente -->
+    <!-- MODAL: detalle de cuenta -->
     <div class="modal-overlay" id="modalDetalle">
-      <div class="modal-card modal-card-form">
-        <div class="modal-header">
-          <h2 class="modal-titulo" id="detNombre">Cuenta</h2>
+      <div class="modal-card modal-card-form modal-detalle">
+        <div class="modal-header detalle-head">
+          <div class="detalle-head-cliente">
+            <div class="cliente-avatar" id="detAvatar">?</div>
+            <div>
+              <h2 class="modal-titulo" id="detNombre">Cuenta</h2>
+              <div class="muted" id="detContacto"></div>
+            </div>
+          </div>
           <button type="button" class="modal-cerrar" id="btnDetCerrar" aria-label="Cerrar">✕</button>
         </div>
 
         <div class="cuenta-saldo-box" id="detSaldoBox">
           <div class="cuenta-saldo-label">Saldo actual</div>
           <div class="cuenta-saldo-monto" id="detSaldo">$0</div>
+          <div class="cuenta-saldo-mini" id="detMini"></div>
         </div>
-        <div class="cuenta-contacto muted" id="detContacto"></div>
 
-        <!-- Cargar un movimiento -->
-        <div class="mov-form">
-          <div class="tipo-toggle">
-            <button type="button" class="tipo-btn tipo-cargo sel" id="tipoCargo">🛒 Fiar (deuda)</button>
-            <button type="button" class="tipo-btn tipo-pago" id="tipoPago">💵 Pago</button>
-          </div>
+        <div class="detalle-acciones">
+          <button type="button" class="btn-accion accion-fiar" id="actFiar"><span class="acc-ico">🛒</span><span>Fiar</span></button>
+          <button type="button" class="btn-accion accion-pago" id="actPago"><span class="acc-ico">💵</span><span>Cobrar</span></button>
+          <button type="button" class="btn-accion accion-saldar" id="actSaldar"><span class="acc-ico">✅</span><span>Saldar</span></button>
+          <button type="button" class="btn-accion accion-wa" id="actWa"><span class="acc-ico">💬</span><span>WhatsApp</span></button>
+        </div>
+
+        <!-- Form de movimiento (se muestra al tocar Fiar / Cobrar) -->
+        <div class="mov-form" id="movForm" hidden>
+          <div class="mov-form-titulo" id="movFormTitulo"></div>
           <div class="dos-columnas">
             <div class="field-block">
               <label for="movMonto">💰 Monto</label>
@@ -132,17 +176,19 @@ import { escaparHTML } from "./utils/html.js";
             <input type="text" id="movDetalle" maxlength="120" placeholder="Ej: mercadería, pan, gaseosas..." />
           </div>
           <div id="movMsg" class="message"></div>
-          <button type="button" class="btn btn-primary btn-grande btn-block" id="btnMovGuardar">Registrar</button>
+          <div class="modal-acciones">
+            <button type="button" class="btn btn-primary btn-grande" id="btnMovGuardar">Registrar</button>
+            <button type="button" class="btn btn-ghost" id="btnMovCancelar">Cancelar</button>
+          </div>
         </div>
 
-        <h3 class="section-title">Movimientos</h3>
+        <h3 class="section-title">Historial</h3>
         <div id="listaMovimientos"></div>
         <div id="movVacio" class="empty-state" hidden>Sin movimientos todavía.</div>
 
-        ${""}
-        <div class="modal-acciones" style="margin-top:16px">
-          <button type="button" class="btn btn-outline btn-block" id="btnEditarCliente">✏️ Editar datos del cliente</button>
-          ${admin ? `<button type="button" class="btn btn-ghost btn-block" id="btnEliminarCliente">🗑️ Eliminar cliente</button>` : ""}
+        <div class="detalle-footer">
+          <button type="button" class="btn btn-outline" id="btnEditarCliente">✏️ Editar datos</button>
+          ${admin ? `<button type="button" class="btn btn-ghost" id="btnEliminarCliente">🗑️ Eliminar cliente</button>` : ""}
         </div>
       </div>
     </div>
@@ -156,6 +202,8 @@ import { escaparHTML } from "./utils/html.js";
   const cClientes = document.getElementById("cClientes");
   const altaMsg = document.getElementById("altaMsg");
   const buscador = document.getElementById("buscador");
+  const filtroChips = document.getElementById("filtroChips");
+  const ordenSel = document.getElementById("orden");
   const listaClientes = document.getElementById("listaClientes");
   const listaVacia = document.getElementById("listaVacia");
 
@@ -169,18 +217,25 @@ import { escaparHTML } from "./utils/html.js";
   const btnClienteGuardar = document.getElementById("btnClienteGuardar");
 
   const modalDetalle = document.getElementById("modalDetalle");
+  const detAvatar = document.getElementById("detAvatar");
   const detNombre = document.getElementById("detNombre");
+  const detContacto = document.getElementById("detContacto");
   const detSaldoBox = document.getElementById("detSaldoBox");
   const detSaldo = document.getElementById("detSaldo");
-  const detContacto = document.getElementById("detContacto");
-  const tipoCargo = document.getElementById("tipoCargo");
-  const tipoPago = document.getElementById("tipoPago");
+  const detMini = document.getElementById("detMini");
+  const actFiar = document.getElementById("actFiar");
+  const actPago = document.getElementById("actPago");
+  const actSaldar = document.getElementById("actSaldar");
+  const actWa = document.getElementById("actWa");
+  const movForm = document.getElementById("movForm");
+  const movFormTitulo = document.getElementById("movFormTitulo");
   const movMonto = document.getElementById("movMonto");
   const movMoneyBox = document.getElementById("movMoneyBox");
   const movFecha = document.getElementById("movFecha");
   const movDetalle = document.getElementById("movDetalle");
   const movMsg = document.getElementById("movMsg");
   const btnMovGuardar = document.getElementById("btnMovGuardar");
+  const btnMovCancelar = document.getElementById("btnMovCancelar");
   const listaMovimientos = document.getElementById("listaMovimientos");
   const movVacio = document.getElementById("movVacio");
   const btnEditarCliente = document.getElementById("btnEditarCliente");
@@ -188,9 +243,10 @@ import { escaparHTML } from "./utils/html.js";
 
   let clientes = [];
   let movimientos = [];
-  let saldos = {};
+  let stats = {};            // id -> { saldo, totalCargo, totalPago, ultima, cant }
   let clienteActualId = null;
   let editandoClienteId = null;
+  let filtro = "todos";
   let tipoMov = "cargo";
 
   function mostrarAlta(texto, tipo) {
@@ -198,32 +254,65 @@ import { escaparHTML } from "./utils/html.js";
     altaMsg.className = texto ? `message message-${tipo}` : "message";
   }
 
+  function calcularStats() {
+    stats = {};
+    clientes.forEach((c) => { stats[c.id] = { saldo: 0, totalCargo: 0, totalPago: 0, ultima: 0, cant: 0 }; });
+    movimientos.forEach((m) => {
+      const s = stats[m.cliente_id] || (stats[m.cliente_id] = { saldo: 0, totalCargo: 0, totalPago: 0, ultima: 0, cant: 0 });
+      const monto = Number(m.monto) || 0;
+      if (m.tipo === "pago") { s.saldo -= monto; s.totalPago += monto; }
+      else { s.saldo += monto; s.totalCargo += monto; }
+      s.cant++;
+      const ms = msAt(m);
+      if (ms > s.ultima) s.ultima = ms;
+    });
+  }
+
   // ================= LISTA DE CLIENTES =================
-  function render(items) {
+  function render() {
     cClientes.textContent = clientes.length;
     let total = 0, deudores = 0;
     clientes.forEach((c) => {
-      const s = saldos[c.id] || 0;
+      const s = (stats[c.id] || {}).saldo || 0;
       if (s > 0.001) { total += s; deudores++; }
     });
     cTotal.textContent = formatearMoneda(total);
     cDeudores.textContent = deudores;
 
+    const t = buscador.value.trim().toLowerCase();
+    let items = clientes.filter((c) => {
+      const s = (stats[c.id] || {}).saldo || 0;
+      if (filtro === "deben" && !(s > 0.001)) return false;
+      if (filtro === "aldia" && s > 0.001) return false;
+      if (t && !([c.nombre, c.telefono].filter(Boolean).join(" ").toLowerCase().includes(t))) return false;
+      return true;
+    });
+
+    const orden = ordenSel.value;
+    items.sort((a, b) => {
+      const sa = (stats[a.id] || {}), sb = (stats[b.id] || {});
+      if (orden === "nombre") return (a.nombre || "").localeCompare(b.nombre || "");
+      if (orden === "reciente") return (sb.ultima || 0) - (sa.ultima || 0);
+      return (sb.saldo || 0) - (sa.saldo || 0); // más deuda primero
+    });
+
     listaClientes.innerHTML = "";
     listaVacia.hidden = items.length > 0;
 
     items.forEach((c) => {
-      const s = saldos[c.id] || 0;
-      const debe = s > 0.001;
+      const s = stats[c.id] || { saldo: 0, ultima: 0 };
+      const debe = s.saldo > 0.001;
       const div = document.createElement("div");
-      div.className = "producto-item cuenta-item";
+      div.className = "cliente-card";
+      const ultimaTxt = s.ultima ? "últ. mov. " + fechaLegible(new Date(s.ultima).toISOString().slice(0, 10)) : "sin movimientos";
       div.innerHTML = `
-        <div class="producto-info">
-          <div class="producto-nombre">${escaparHTML(c.nombre)}</div>
-          <div class="producto-extra">${escaparHTML(c.telefono || "—")}</div>
+        <div class="cliente-avatar" style="background:${colorAvatar(c.nombre)}">${escaparHTML(inicial(c.nombre))}</div>
+        <div class="cliente-main">
+          <div class="cliente-nombre">${escaparHTML(c.nombre)}</div>
+          <div class="cliente-sub">${c.telefono ? "📞 " + escaparHTML(c.telefono) + " · " : ""}${escaparHTML(ultimaTxt)}</div>
         </div>
-        <div class="cuenta-saldo ${debe ? "saldo-debe" : "saldo-ok"}">
-          ${debe ? "Debe " + formatearMoneda(s) : "Al día ✅"}
+        <div class="cliente-saldo ${debe ? "saldo-debe" : "saldo-ok"}">
+          ${debe ? formatearMoneda(s.saldo) : "Al día ✅"}
         </div>
       `;
       div.addEventListener("click", () => abrirDetalle(c.id));
@@ -231,24 +320,22 @@ import { escaparHTML } from "./utils/html.js";
     });
   }
 
-  function aplicarBusqueda() {
-    const t = buscador.value.trim().toLowerCase();
-    const items = !t
-      ? clientes
-      : clientes.filter((c) =>
-          [c.nombre, c.telefono].filter(Boolean).join(" ").toLowerCase().includes(t)
-        );
-    render(items);
-  }
-  buscador.addEventListener("input", aplicarBusqueda);
+  buscador.addEventListener("input", render);
+  ordenSel.addEventListener("change", render);
+  filtroChips.querySelectorAll("[data-filtro]").forEach((b) => {
+    b.addEventListener("click", () => {
+      filtro = b.dataset.filtro;
+      filtroChips.querySelectorAll(".chip").forEach((x) => x.classList.toggle("sel", x === b));
+      render();
+    });
+  });
 
   // ================= NUEVO / EDITAR CLIENTE =================
   function abrirNuevoCliente() {
     editandoClienteId = null;
     modalClienteTitulo.textContent = "👤 Nuevo cliente";
     formCliente.reset();
-    clMsg.textContent = "";
-    clMsg.className = "message";
+    clMsg.textContent = ""; clMsg.className = "message";
     modalCliente.classList.add("abierto");
     setTimeout(() => clNombre.focus(), 50);
   }
@@ -258,8 +345,7 @@ import { escaparHTML } from "./utils/html.js";
     clNombre.value = c.nombre || "";
     clTelefono.value = c.telefono || "";
     clNotas.value = c.notas || "";
-    clMsg.textContent = "";
-    clMsg.className = "message";
+    clMsg.textContent = ""; clMsg.className = "message";
     modalCliente.classList.add("abierto");
   }
   function cerrarCliente() { modalCliente.classList.remove("abierto"); }
@@ -281,57 +367,35 @@ import { escaparHTML } from "./utils/html.js";
     try {
       if (editandoClienteId) {
         await actualizarCliente(editandoClienteId, {
-          nombre: clNombre.value.trim(),
-          telefono: clTelefono.value.trim(),
-          notas: clNotas.value.trim(),
+          nombre: clNombre.value.trim(), telefono: clTelefono.value.trim(), notas: clNotas.value.trim(),
         });
       } else {
-        await agregarCliente({
-          nombre: clNombre.value,
-          telefono: clTelefono.value,
-          notas: clNotas.value,
-          uid: user.uid,
-        });
+        await agregarCliente({ nombre: clNombre.value, telefono: clTelefono.value, notas: clNotas.value, uid: user.uid });
       }
+      const reabrir = editandoClienteId;
       cerrarCliente();
       mostrarAlta(editandoClienteId ? "✅ Cliente actualizado." : "✅ Cliente agregado.", "success");
-      const reabrir = editandoClienteId;
       await cargar();
-      if (reabrir) abrirDetalle(reabrir); // si estábamos editando desde el detalle, lo reabrimos
+      if (reabrir) abrirDetalle(reabrir);
     } catch (err) {
       clMsg.textContent = "⚠️ Error: " + (err?.code || err?.message || "desconocido");
       clMsg.className = "message message-error";
-      console.error("Error guardando cliente:", err);
     } finally {
       btnClienteGuardar.disabled = false;
       btnClienteGuardar.textContent = "💾 Guardar";
     }
   });
 
-  // ================= DETALLE DE CUENTA =================
-  function seleccionarTipo(tipo) {
-    tipoMov = tipo;
-    tipoCargo.classList.toggle("sel", tipo === "cargo");
-    tipoPago.classList.toggle("sel", tipo === "pago");
-    btnMovGuardar.textContent = tipo === "pago" ? "💵 Registrar pago" : "🛒 Registrar deuda";
-  }
-  tipoCargo.addEventListener("click", () => seleccionarTipo("cargo"));
-  tipoPago.addEventListener("click", () => seleccionarTipo("pago"));
-  movMonto.addEventListener("focus", () => movMoneyBox.classList.add("focus"));
-  movMonto.addEventListener("blur", () => movMoneyBox.classList.remove("focus"));
-
+  // ================= DETALLE =================
   function abrirDetalle(clienteId) {
     clienteActualId = clienteId;
     const c = clientes.find((x) => x.id === clienteId);
     if (!c) return;
+    detAvatar.textContent = inicial(c.nombre);
+    detAvatar.style.background = colorAvatar(c.nombre);
     detNombre.textContent = c.nombre;
-    detContacto.textContent = [c.telefono, c.notas].filter(Boolean).join(" · ");
-    seleccionarTipo("cargo");
-    movMonto.value = "";
-    movDetalle.value = "";
-    movFecha.value = hoyISO();
-    movMsg.textContent = "";
-    movMsg.className = "message";
+    detContacto.textContent = [c.telefono, c.notas].filter(Boolean).join(" · ") || "Sin teléfono";
+    ocultarMovForm();
     renderDetalle();
     modalDetalle.classList.add("abierto");
   }
@@ -340,26 +404,40 @@ import { escaparHTML } from "./utils/html.js";
   modalDetalle.addEventListener("click", (e) => { if (e.target === modalDetalle) cerrarDetalle(); });
 
   function renderDetalle() {
-    const movs = movimientos
-      .filter((m) => m.cliente_id === clienteActualId)
-      .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
-    const saldo = saldos[clienteActualId] || 0;
-    const debe = saldo > 0.001;
-    detSaldo.textContent = debe ? formatearMoneda(saldo) : "Al día ✅";
+    const s = stats[clienteActualId] || { saldo: 0, totalCargo: 0, totalPago: 0 };
+    const debe = s.saldo > 0.001;
+    detSaldo.textContent = debe ? formatearMoneda(s.saldo) : "Al día ✅";
     detSaldoBox.className = `cuenta-saldo-box ${debe ? "box-debe" : "box-ok"}`;
+    detMini.textContent = `Fiado total: ${formatearMoneda(s.totalCargo)}  ·  Pagado: ${formatearMoneda(s.totalPago)}`;
+
+    // Acciones: Saldar y WhatsApp según corresponda.
+    const c = clientes.find((x) => x.id === clienteActualId) || {};
+    actSaldar.style.display = debe ? "" : "none";
+    actWa.style.display = c.telefono ? "" : "none";
+
+    // Historial con saldo corriente.
+    const movsAsc = movimientos
+      .filter((m) => m.cliente_id === clienteActualId)
+      .sort((a, b) => (a.fecha === b.fecha ? msAt(a) - msAt(b) : (a.fecha < b.fecha ? -1 : 1)));
+    let bal = 0;
+    const conBal = movsAsc.map((m) => {
+      bal += (m.tipo === "pago" ? -1 : 1) * (Number(m.monto) || 0);
+      return { m, bal };
+    });
+    conBal.reverse();
 
     listaMovimientos.innerHTML = "";
-    movVacio.hidden = movs.length > 0;
-    movs.forEach((m) => {
+    movVacio.hidden = conBal.length > 0;
+    conBal.forEach(({ m, bal }) => {
       const esPago = m.tipo === "pago";
       const div = document.createElement("div");
       div.className = `mov-item ${esPago ? "mov-pago" : "mov-cargo"}`;
       div.innerHTML = `
         <div class="mov-info">
           <div class="mov-tipo">${esPago ? "💵 Pago" : "🛒 Deuda"}${m.detalle ? " · " + escaparHTML(m.detalle) : ""}</div>
-          <div class="mov-fecha muted">${m.fecha ? fechaLegible(m.fecha) : "—"}</div>
+          <div class="mov-fecha muted">${m.fecha ? fechaLegible(m.fecha) : "—"} · saldo: ${formatearMoneda(bal)}</div>
         </div>
-        <div class="mov-monto">${esPago ? "-" : "+"} ${formatearMoneda(Number(m.monto) || 0)}</div>
+        <div class="mov-monto">${esPago ? "−" : "+"} ${formatearMoneda(Number(m.monto) || 0)}</div>
         ${admin ? `<button class="btn-icon" data-delmov="${m.id}" title="Borrar">🗑️</button>` : ""}
       `;
       listaMovimientos.appendChild(div);
@@ -376,6 +454,53 @@ import { escaparHTML } from "./utils/html.js";
     }
   }
 
+  // --- Acciones rápidas ---
+  function mostrarMovForm(tipo) {
+    tipoMov = tipo;
+    movForm.hidden = false;
+    movFormTitulo.textContent = tipo === "pago" ? "💵 Registrar un pago" : "🛒 Registrar una deuda (fiado)";
+    movFormTitulo.className = "mov-form-titulo " + (tipo === "pago" ? "titulo-pago" : "titulo-cargo");
+    btnMovGuardar.textContent = tipo === "pago" ? "💵 Registrar pago" : "🛒 Registrar deuda";
+    btnMovGuardar.className = "btn btn-grande " + (tipo === "pago" ? "btn-pago" : "btn-primary");
+    movMonto.value = ""; movDetalle.value = ""; movFecha.value = hoyISO();
+    movMsg.textContent = ""; movMsg.className = "message";
+    movForm.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => movMonto.focus(), 60);
+  }
+  function ocultarMovForm() { movForm.hidden = true; }
+  actFiar.addEventListener("click", () => mostrarMovForm("cargo"));
+  actPago.addEventListener("click", () => mostrarMovForm("pago"));
+  btnMovCancelar.addEventListener("click", ocultarMovForm);
+  movMonto.addEventListener("focus", () => movMoneyBox.classList.add("focus"));
+  movMonto.addEventListener("blur", () => movMoneyBox.classList.remove("focus"));
+
+  actWa.addEventListener("click", () => {
+    const c = clientes.find((x) => x.id === clienteActualId);
+    if (!c) return;
+    const s = stats[clienteActualId] || { saldo: 0 };
+    const texto = s.saldo > 0.001
+      ? `Hola ${c.nombre}, te recuerdo que tenés una cuenta pendiente de ${formatearMoneda(s.saldo)} en El Periquete. ¡Gracias! 🙂`
+      : `Hola ${c.nombre}, ¡tu cuenta en El Periquete está al día! Gracias. 🙂`;
+    const link = waLink(c.telefono, texto);
+    if (link) window.open(link, "_blank");
+  });
+
+  actSaldar.addEventListener("click", async () => {
+    const s = stats[clienteActualId] || { saldo: 0 };
+    if (!(s.saldo > 0.001)) return;
+    if (!confirm(`¿Registrar el pago total de ${formatearMoneda(s.saldo)} y dejar la cuenta en cero?`)) return;
+    try {
+      await agregarMovimiento({
+        cliente_id: clienteActualId, tipo: "pago", monto: s.saldo,
+        detalle: "Saldó la cuenta", fecha: hoyISO(), uid: user.uid,
+      });
+      await cargar();
+      renderDetalle();
+    } catch (err) {
+      alert("No se pudo registrar el pago: " + (err?.code || err?.message || "error"));
+    }
+  });
+
   btnMovGuardar.addEventListener("click", async () => {
     const monto = parsearMonto(movMonto.value);
     if (isNaN(monto) || monto <= 0) {
@@ -384,30 +509,19 @@ import { escaparHTML } from "./utils/html.js";
       return;
     }
     btnMovGuardar.disabled = true;
-    const txt = btnMovGuardar.textContent;
-    btnMovGuardar.textContent = "Guardando...";
     try {
       await agregarMovimiento({
-        cliente_id: clienteActualId,
-        tipo: tipoMov,
-        monto,
-        detalle: movDetalle.value,
-        fecha: movFecha.value || hoyISO(),
-        uid: user.uid,
+        cliente_id: clienteActualId, tipo: tipoMov, monto,
+        detalle: movDetalle.value, fecha: movFecha.value || hoyISO(), uid: user.uid,
       });
-      movMonto.value = "";
-      movDetalle.value = "";
-      movMsg.textContent = tipoMov === "pago" ? "✅ Pago registrado." : "✅ Deuda registrada.";
-      movMsg.className = "message message-success";
+      ocultarMovForm();
       await cargar();
       renderDetalle();
     } catch (err) {
       movMsg.textContent = "⚠️ Error: " + (err?.code || err?.message || "desconocido");
       movMsg.className = "message message-error";
-      console.error("Error guardando movimiento:", err);
     } finally {
       btnMovGuardar.disabled = false;
-      btnMovGuardar.textContent = txt;
     }
   });
 
@@ -434,8 +548,8 @@ import { escaparHTML } from "./utils/html.js";
   // ================= CARGA =================
   async function cargar() {
     [clientes, movimientos] = await Promise.all([listarClientes(), listarMovimientos()]);
-    saldos = calcularSaldos(movimientos);
-    aplicarBusqueda();
+    calcularStats();
+    render();
   }
 
   await cargar();
