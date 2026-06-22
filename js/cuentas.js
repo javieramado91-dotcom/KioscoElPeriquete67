@@ -19,6 +19,10 @@ import {
   listarMovimientos,
   agregarMovimiento,
   eliminarMovimiento,
+  listarNotas,
+  agregarNota,
+  actualizarNota,
+  eliminarNota,
 } from "./services/cuentas.service.js";
 import { formatearMoneda, parsearMonto, hoyISO, fechaLegible } from "./utils/format.js";
 import { escaparHTML } from "./utils/html.js";
@@ -182,7 +186,16 @@ function waLink(telefono, texto) {
           </div>
         </div>
 
-        <h3 class="section-title">Historial</h3>
+        <h3 class="section-title">📌 Pizarra · novedades</h3>
+        <p class="pizarra-ayuda muted">Anotá cosas no monetarias: botellas/envases que debe, encargues, recordatorios...</p>
+        <div class="pizarra-add">
+          <input type="text" id="notaTexto" maxlength="140" placeholder="Ej: debe 3 botellas de litro" />
+          <button type="button" class="btn btn-primary" id="btnNota">📌 Anotar</button>
+        </div>
+        <div id="listaNotas" class="pizarra-lista"></div>
+        <div id="notasVacio" class="empty-state" hidden>Sin novedades anotadas.</div>
+
+        <h3 class="section-title">Historial de cuenta</h3>
         <div id="listaMovimientos"></div>
         <div id="movVacio" class="empty-state" hidden>Sin movimientos todavía.</div>
 
@@ -238,11 +251,16 @@ function waLink(telefono, texto) {
   const btnMovCancelar = document.getElementById("btnMovCancelar");
   const listaMovimientos = document.getElementById("listaMovimientos");
   const movVacio = document.getElementById("movVacio");
+  const notaTexto = document.getElementById("notaTexto");
+  const btnNota = document.getElementById("btnNota");
+  const listaNotas = document.getElementById("listaNotas");
+  const notasVacio = document.getElementById("notasVacio");
   const btnEditarCliente = document.getElementById("btnEditarCliente");
   const btnEliminarCliente = document.getElementById("btnEliminarCliente");
 
   let clientes = [];
   let movimientos = [];
+  let notas = [];
   let stats = {};            // id -> { saldo, totalCargo, totalPago, ultima, cant }
   let clienteActualId = null;
   let editandoClienteId = null;
@@ -305,10 +323,12 @@ function waLink(telefono, texto) {
       const div = document.createElement("div");
       div.className = "cliente-card";
       const ultimaTxt = s.ultima ? "últ. mov. " + fechaLegible(new Date(s.ultima).toISOString().slice(0, 10)) : "sin movimientos";
+      const pend = notasPendientesDe(c.id);
+      const pizarraBadge = pend ? `<span class="pizarra-badge" title="Novedades pendientes">📌 ${pend}</span>` : "";
       div.innerHTML = `
         <div class="cliente-avatar" style="background:${colorAvatar(c.nombre)}">${escaparHTML(inicial(c.nombre))}</div>
         <div class="cliente-main">
-          <div class="cliente-nombre">${escaparHTML(c.nombre)}</div>
+          <div class="cliente-nombre">${escaparHTML(c.nombre)} ${pizarraBadge}</div>
           <div class="cliente-sub">${c.telefono ? "📞 " + escaparHTML(c.telefono) + " · " : ""}${escaparHTML(ultimaTxt)}</div>
         </div>
         <div class="cliente-saldo ${debe ? "saldo-debe" : "saldo-ok"}">
@@ -397,6 +417,7 @@ function waLink(telefono, texto) {
     detContacto.textContent = [c.telefono, c.notas].filter(Boolean).join(" · ") || "Sin teléfono";
     ocultarMovForm();
     renderDetalle();
+    renderPizarra();
     modalDetalle.classList.add("abierto");
   }
   function cerrarDetalle() { modalDetalle.classList.remove("abierto"); clienteActualId = null; }
@@ -453,6 +474,62 @@ function waLink(telefono, texto) {
       });
     }
   }
+
+  // --- Pizarra de novedades ---
+  function renderPizarra() {
+    const items = notas
+      .filter((n) => n.cliente_id === clienteActualId)
+      .sort((a, b) => (a.hecho === b.hecho ? msAt(b) - msAt(a) : (a.hecho ? 1 : -1)));
+    listaNotas.innerHTML = "";
+    notasVacio.hidden = items.length > 0;
+    items.forEach((n) => {
+      const div = document.createElement("div");
+      div.className = `nota-item ${n.hecho ? "hecha" : ""}`;
+      div.innerHTML = `
+        <button class="nota-check" data-toggle="${n.id}" title="${n.hecho ? "Marcar como pendiente" : "Marcar como resuelto"}">${n.hecho ? "✅" : "⬜"}</button>
+        <div class="nota-texto">${escaparHTML(n.texto)}</div>
+        <button class="btn-icon" data-delnota="${n.id}" title="Borrar">🗑️</button>
+      `;
+      listaNotas.appendChild(div);
+    });
+    listaNotas.querySelectorAll("[data-toggle]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        const n = notas.find((x) => x.id === b.dataset.toggle);
+        if (!n) return;
+        await actualizarNota(n.id, { hecho: !n.hecho });
+        await cargar();
+        renderPizarra();
+      });
+    });
+    listaNotas.querySelectorAll("[data-delnota]").forEach((b) => {
+      b.addEventListener("click", async () => {
+        await eliminarNota(b.dataset.delnota);
+        await cargar();
+        renderPizarra();
+      });
+    });
+  }
+
+  async function guardarNota() {
+    const texto = notaTexto.value.trim();
+    if (!texto) { notaTexto.focus(); return; }
+    btnNota.disabled = true;
+    try {
+      await agregarNota({ cliente_id: clienteActualId, texto, uid: user.uid });
+      notaTexto.value = "";
+      await cargar();
+      renderPizarra();
+      notaTexto.focus();
+    } catch (err) {
+      alert("No se pudo anotar: " + (err?.code || err?.message || "error"));
+    } finally {
+      btnNota.disabled = false;
+    }
+  }
+  btnNota.addEventListener("click", guardarNota);
+  notaTexto.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); guardarNota(); }
+  });
 
   // --- Acciones rápidas ---
   function mostrarMovForm(tipo) {
@@ -546,8 +623,14 @@ function waLink(telefono, texto) {
   }
 
   // ================= CARGA =================
+  function notasPendientesDe(clienteId) {
+    return notas.filter((n) => n.cliente_id === clienteId && !n.hecho).length;
+  }
+
   async function cargar() {
-    [clientes, movimientos] = await Promise.all([listarClientes(), listarMovimientos()]);
+    [clientes, movimientos, notas] = await Promise.all([
+      listarClientes(), listarMovimientos(), listarNotas(),
+    ]);
     calcularStats();
     render();
   }

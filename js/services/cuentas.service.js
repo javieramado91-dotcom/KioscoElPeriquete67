@@ -28,6 +28,7 @@ import { db } from "../firebase/firebase-config.js";
 
 const COL_CLIENTES = "clientes";
 const COL_MOV = "movimientos";
+const COL_NOTAS = "notas";
 
 // ---------------- Clientes ----------------
 export async function listarClientes() {
@@ -82,6 +83,30 @@ export function agregarMovimiento({ cliente_id, tipo, monto, detalle, fecha, uid
 
 export function eliminarMovimiento(id) {
   return deleteDoc(doc(db, COL_MOV, id));
+}
+
+// ---------------- Pizarra (novedades no monetarias) ----------------
+export async function listarNotas() {
+  const snap = await getDocs(collection(db, COL_NOTAS));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export function agregarNota({ cliente_id, texto, uid }) {
+  return addDoc(collection(db, COL_NOTAS), {
+    cliente_id,
+    texto: (texto || "").trim(),
+    hecho: false,
+    creado_por: uid,
+    fecha_creacion: serverTimestamp(),
+  });
+}
+
+export function actualizarNota(id, cambios) {
+  return updateDoc(doc(db, COL_NOTAS, id), cambios);
+}
+
+export function eliminarNota(id) {
+  return deleteDoc(doc(db, COL_NOTAS, id));
 }
 
 // ---------------- Cálculo de saldos ----------------

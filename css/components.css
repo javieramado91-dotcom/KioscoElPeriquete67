@@ -1058,6 +1058,50 @@ input[type="checkbox"] {
 }
 .btn-pago:hover { filter: brightness(0.95); }
 
+/* Pizarra de novedades */
+.pizarra-ayuda { font-size: 0.82rem; margin: -6px 0 10px; }
+.pizarra-add { display: flex; gap: 8px; margin-bottom: 12px; }
+.pizarra-add input { flex: 1; min-width: 0; }
+.pizarra-add .btn { flex: 0 0 auto; }
+.pizarra-lista { display: flex; flex-direction: column; gap: 8px; }
+.nota-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--color-accent);
+  background: #fffdf3;
+  box-shadow: var(--shadow-sm);
+}
+.nota-item.hecha {
+  border-left-color: var(--color-success);
+  background: var(--color-bg);
+}
+.nota-item.hecha .nota-texto {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+.nota-check {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+.nota-texto { flex: 1; min-width: 0; font-weight: 600; word-break: break-word; }
+.pizarra-badge {
+  display: inline-block;
+  background: var(--color-accent);
+  color: #5a4500;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 1px 8px;
+  vertical-align: middle;
+}
+
 /* Pie del detalle */
 .detalle-footer {
   display: flex;
