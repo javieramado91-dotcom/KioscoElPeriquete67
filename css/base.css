@@ -60,6 +60,16 @@ a {
   margin-top: 8px;
 }
 
+.login-logo {
+  display: block;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 8px;
+  box-shadow: var(--shadow-md);
+}
+
 .login-foot {
   text-align: center;
   margin-top: 18px;

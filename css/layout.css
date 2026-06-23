@@ -50,6 +50,24 @@
 .brand-name { font-weight: 700; font-size: 1.05rem; }
 .brand-sub { font-size: 0.78rem; color: var(--color-muted); }
 
+/* Logo del emprendimiento (versión redonda: se recorta en círculo) */
+.brand-logo-wrap { justify-content: center; }
+.brand-img {
+  display: block;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto;
+}
+.topbar-logo {
+  height: 42px;
+  width: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #fff;
+}
+
 .nav {
   flex: 1;
   padding: 14px 12px;

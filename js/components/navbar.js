@@ -69,18 +69,14 @@ export function montarLayout({ activo, perfil, contenido }) {
   root.innerHTML = `
     <!-- Barra superior (visible solo en celular) -->
     <header class="topbar">
-      <div class="topbar-brand"><span>🛒</span> El Periquete</div>
+      <div class="topbar-brand"><img src="../assets/logo.png" alt="Kiosco Periquete" class="topbar-logo" /></div>
       <button class="topbar-logout" id="btnLogoutTop">Salir</button>
     </header>
 
     <!-- Menú lateral (visible solo en PC) -->
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-logo">🛒</div>
-        <div>
-          <div class="brand-name">El Periquete</div>
-          <div class="brand-sub">Despensa</div>
-        </div>
+      <div class="brand brand-logo-wrap">
+        <img src="../assets/logo.png" alt="Kiosco Periquete" class="brand-img" />
       </div>
 
       <nav class="nav">${linksLaterales}</nav>
