@@ -14,8 +14,21 @@ import { protegerPagina } from "./utils/guards.js";
 import { montarLayout } from "./components/navbar.js";
 import { listarGanancias, eliminarGanancia } from "./services/ganancias.service.js";
 import { esAdmin } from "./services/usuarios.service.js";
-import { formatearMoneda, fechaLegible, nombreMes } from "./utils/format.js";
+import { formatearMoneda, fechaLegible, fechaFriendly, nombreMes } from "./utils/format.js";
 import { escaparHTML } from "./utils/html.js";
+import { feriadosDelAnio, tipoDeDia } from "./utils/feriados.js";
+
+// Colores para el gráfico día por día según el tipo de día.
+const COLOR_DIA = {
+  semana: "#ffc20e", // amarillo (día común)
+  finde: "#3b82f6", // azul (fin de semana)
+  feriado: "#8b5cf6", // violeta (feriado)
+};
+const TEXTO_DIA = {
+  semana: "Día de semana",
+  finde: "Fin de semana",
+  feriado: "Feriado",
+};
 
 (async function init() {
   const { perfil } = await protegerPagina();
@@ -76,7 +89,14 @@ import { escaparHTML } from "./utils/html.js";
       <p class="muted" id="ayudaDiario" hidden>
         Elegí un mes arriba para ver cómo se movieron las ventas día por día.
       </p>
-      <div id="wrapDiario"><canvas id="chartDiario"></canvas></div>
+      <div id="wrapDiario">
+        <div class="leyenda-dias">
+          <span><i style="background:#ffc20e"></i> Día de semana</span>
+          <span><i style="background:#3b82f6"></i> Fin de semana</span>
+          <span><i style="background:#8b5cf6"></i> Feriado</span>
+        </div>
+        <canvas id="chartDiario"></canvas>
+      </div>
     </section>
 
     <h3 class="section-title">Detalle de ganancias</h3>
@@ -205,6 +225,10 @@ import { escaparHTML } from "./utils/html.js";
     ayudaDiario.hidden = true;
     tituloDiario.textContent = `Ganancia día por día — ${nombreMes(mes)} ${anio}`;
 
+    // Feriados del año (para pintar y explicar cada día).
+    const feriados = feriadosDelAnio(anio);
+    const mm = String(mes + 1).padStart(2, "0");
+
     // Cantidad de días del mes (el día 0 del mes siguiente = último día).
     const diasEnMes = new Date(anio, mes + 1, 0).getDate();
     const porDia = new Array(diasEnMes).fill(0);
@@ -212,27 +236,54 @@ import { escaparHTML } from "./utils/html.js";
       .filter((g) => mesDe(g.fecha) === mes)
       .forEach((g) => (porDia[diaDe(g.fecha) - 1] += g.monto));
 
+    // Para cada día: su fecha ISO, color por tipo de día y texto del globito.
+    const fechas = [];
+    const colores = [];
+    const detalleDia = [];
+    for (let d = 1; d <= diasEnMes; d++) {
+      const isoFecha = `${anio}-${mm}-${String(d).padStart(2, "0")}`;
+      const tipo = tipoDeDia(isoFecha, feriados);
+      fechas.push(isoFecha);
+      colores.push(COLOR_DIA[tipo]);
+      detalleDia.push(
+        tipo === "feriado"
+          ? `Feriado · ${feriados.get(isoFecha)}`
+          : TEXTO_DIA[tipo]
+      );
+    }
+
     const ctx = document.getElementById("chartDiario");
     chartDiario?.destroy();
     chartDiario = new Chart(ctx, {
-      type: "line",
+      type: "bar",
       data: {
         labels: porDia.map((_, i) => i + 1),
         datasets: [
           {
-            label: `Ganancia diaria (${nombreMes(mes)})`,
+            label: "Ganancia del día",
             data: porDia,
-            borderColor: "#e02d2d",
-            backgroundColor: "rgba(255,194,14,.35)",
-            fill: true,
-            tension: 0.3,
-            pointRadius: 3,
-            pointBackgroundColor: "#e02d2d",
+            backgroundColor: colores,
+            borderColor: colores,
+            borderWidth: 1,
+            borderRadius: 5,
           },
         ],
       },
       options: {
         ...chartOpciones(),
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              // Título: fecha completa ("Viernes 11 de julio de 2026").
+              title: (items) => fechaFriendly(fechas[items[0].dataIndex]),
+              // Línea 1: ingreso del día.
+              label: (ctx) => "Ingreso: " + formatearMoneda(ctx.parsed.y),
+              // Línea 2: qué tipo de día es.
+              afterLabel: (ctx) => detalleDia[ctx.dataIndex],
+            },
+          },
+        },
         scales: {
           ...chartOpciones().scales,
           x: { title: { display: true, text: "Día del mes" } },
@@ -297,7 +348,18 @@ import { escaparHTML } from "./utils/html.js";
           },
         ],
       },
-      options: chartOpciones(),
+      options: {
+        ...chartOpciones(),
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              title: (items) => `${nombreMes(items[0].dataIndex)} ${anio}`,
+              label: (ctx) => "Ganancia: " + formatearMoneda(ctx.parsed.y),
+            },
+          },
+        },
+      },
     });
   }
 
@@ -336,7 +398,15 @@ import { escaparHTML } from "./utils/html.js";
     return {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: true } },
+      plugins: {
+        legend: { display: true },
+        tooltip: {
+          callbacks: {
+            // Por defecto el globito muestra el monto en pesos.
+            label: (ctx) => formatearMoneda(ctx.parsed.y),
+          },
+        },
+      },
       scales: {
         y: {
           beginAtZero: true,

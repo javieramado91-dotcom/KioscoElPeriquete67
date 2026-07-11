@@ -204,6 +204,23 @@ input:focus, select:focus, textarea:focus {
 .chart-card canvas { height: 280px !important; }
 .chart-card--wide { margin-top: 16px; }
 
+/* Leyenda de colores del gráfico día por día. */
+.leyenda-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+.leyenda-dias span { display: inline-flex; align-items: center; }
+.leyenda-dias i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 5px;
+}
+
 /* ---------- TABLA ---------- */
 .table-card { padding: 8px; }
 .table-wrap { overflow-x: auto; }
