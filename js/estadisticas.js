@@ -99,6 +99,16 @@ const TEXTO_DIA = {
       </div>
     </section>
 
+    <section class="chart-card chart-card--wide">
+      <h3 class="section-title">Mes típico: promedio por día (comparación de meses)</h3>
+      <p class="muted">
+        La línea roja gruesa es el <strong>promedio de todos los meses</strong> del año:
+        te dice en qué parte del mes se vende más y en cuál menos. Tocá el nombre de un
+        mes en la referencia de abajo para compararlo con el promedio.
+      </p>
+      <canvas id="chartPromedio"></canvas>
+    </section>
+
     <h3 class="section-title">Detalle de ganancias</h3>
     <section class="table-card">
       <div class="table-wrap">
@@ -127,6 +137,7 @@ const TEXTO_DIA = {
   let chartMensual = null;
   let chartAnual = null;
   let chartDiario = null;
+  let chartPromedio = null;
 
   // --- Referencias DOM ---
   const filtroAnio = document.getElementById("filtroAnio");
@@ -207,6 +218,87 @@ const TEXTO_DIA = {
     renderChartMensual(delAnio, anio);
     renderChartAnual();
     renderChartDiario(delAnio, anio, mesSel);
+    renderChartPromedio(delAnio);
+  }
+
+  function renderChartPromedio(delAnio) {
+    // Promedio de ganancia por día del mes (posición 1..31), tomando todos
+    // los meses del año. Solo se promedian los días que tienen registro.
+    const suma = new Array(31).fill(0);
+    const cuenta = new Array(31).fill(0);
+    // Serie por mes: 31 posiciones, null donde no hay dato.
+    const porMes = Array.from({ length: 12 }, () => new Array(31).fill(null));
+
+    delAnio.forEach((g) => {
+      const d = diaDe(g.fecha) - 1; // 0..30
+      const m = mesDe(g.fecha);
+      suma[d] += g.monto;
+      cuenta[d] += 1;
+      porMes[m][d] = (porMes[m][d] || 0) + g.monto;
+    });
+
+    const promedio = suma.map((s, i) => (cuenta[i] ? s / cuenta[i] : null));
+    const labels = Array.from({ length: 31 }, (_, i) => i + 1);
+
+    // Dataset principal: el promedio (línea roja gruesa).
+    const datasets = [
+      {
+        label: "Promedio",
+        data: promedio,
+        borderColor: "#e02d2d",
+        backgroundColor: "rgba(224,45,45,.12)",
+        borderWidth: 3,
+        pointRadius: 3,
+        pointBackgroundColor: "#e02d2d",
+        tension: 0.3,
+        fill: true,
+        spanGaps: true,
+        order: 0,
+      },
+    ];
+
+    // Una línea fina por mes con datos, oculta por defecto (se activa desde
+    // la referencia de abajo tocando el nombre del mes).
+    for (let m = 0; m < 12; m++) {
+      if (porMes[m].every((v) => v === null)) continue;
+      const color = `hsl(${Math.round((m * 360) / 12)}, 70%, 52%)`;
+      datasets.push({
+        label: nombreMes(m),
+        data: porMes[m],
+        borderColor: color,
+        backgroundColor: color,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+        spanGaps: true,
+        hidden: true, // arranca oculta; el promedio es lo que se ve primero
+        order: 1,
+      });
+    }
+
+    const ctx = document.getElementById("chartPromedio");
+    chartPromedio?.destroy();
+    chartPromedio = new Chart(ctx, {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        ...chartOpciones(),
+        plugins: {
+          legend: { display: true, position: "bottom" },
+          tooltip: {
+            callbacks: {
+              title: (items) => `Día ${items[0].label} del mes`,
+              label: (ctx) =>
+                `${ctx.dataset.label}: ` + formatearMoneda(ctx.parsed.y),
+            },
+          },
+        },
+        scales: {
+          ...chartOpciones().scales,
+          x: { title: { display: true, text: "Día del mes" } },
+        },
+      },
+    });
   }
 
   function renderChartDiario(delAnio, anio, mesSel) {
