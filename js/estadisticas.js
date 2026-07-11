@@ -71,6 +71,14 @@ import { escaparHTML } from "./utils/html.js";
       </div>
     </section>
 
+    <section class="chart-card chart-card--wide">
+      <h3 class="section-title" id="tituloDiario">Ganancia día por día del mes</h3>
+      <p class="muted" id="ayudaDiario" hidden>
+        Elegí un mes arriba para ver cómo se movieron las ventas día por día.
+      </p>
+      <div id="wrapDiario"><canvas id="chartDiario"></canvas></div>
+    </section>
+
     <h3 class="section-title">Detalle de ganancias</h3>
     <section class="table-card">
       <div class="table-wrap">
@@ -98,6 +106,7 @@ import { escaparHTML } from "./utils/html.js";
   let todas = [];
   let chartMensual = null;
   let chartAnual = null;
+  let chartDiario = null;
 
   // --- Referencias DOM ---
   const filtroAnio = document.getElementById("filtroAnio");
@@ -108,6 +117,9 @@ import { escaparHTML } from "./utils/html.js";
   const statPromedio = document.getElementById("statPromedio");
   const tablaBody = document.getElementById("tablaBody");
   const tablaVacia = document.getElementById("tablaVacia");
+  const tituloDiario = document.getElementById("tituloDiario");
+  const ayudaDiario = document.getElementById("ayudaDiario");
+  const wrapDiario = document.getElementById("wrapDiario");
 
   // Poblar selector de meses.
   for (let i = 0; i < 12; i++) {
@@ -120,6 +132,7 @@ import { escaparHTML } from "./utils/html.js";
   // Helpers de extracción de partes de "YYYY-MM-DD".
   const anioDe = (iso) => Number(iso.slice(0, 4));
   const mesDe = (iso) => Number(iso.slice(5, 7)) - 1; // 0-11
+  const diaDe = (iso) => Number(iso.slice(8, 10)); // 1-31
 
   async function cargar() {
     todas = await listarGanancias();
@@ -173,6 +186,59 @@ import { escaparHTML } from "./utils/html.js";
     // --- Gráficos ---
     renderChartMensual(delAnio, anio);
     renderChartAnual();
+    renderChartDiario(delAnio, anio, mesSel);
+  }
+
+  function renderChartDiario(delAnio, anio, mesSel) {
+    // Solo tiene sentido con un mes concreto elegido.
+    if (mesSel === "todos") {
+      chartDiario?.destroy();
+      chartDiario = null;
+      wrapDiario.hidden = true;
+      ayudaDiario.hidden = false;
+      tituloDiario.textContent = "Ganancia día por día del mes";
+      return;
+    }
+
+    const mes = Number(mesSel);
+    wrapDiario.hidden = false;
+    ayudaDiario.hidden = true;
+    tituloDiario.textContent = `Ganancia día por día — ${nombreMes(mes)} ${anio}`;
+
+    // Cantidad de días del mes (el día 0 del mes siguiente = último día).
+    const diasEnMes = new Date(anio, mes + 1, 0).getDate();
+    const porDia = new Array(diasEnMes).fill(0);
+    delAnio
+      .filter((g) => mesDe(g.fecha) === mes)
+      .forEach((g) => (porDia[diaDe(g.fecha) - 1] += g.monto));
+
+    const ctx = document.getElementById("chartDiario");
+    chartDiario?.destroy();
+    chartDiario = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: porDia.map((_, i) => i + 1),
+        datasets: [
+          {
+            label: `Ganancia diaria (${nombreMes(mes)})`,
+            data: porDia,
+            borderColor: "#e02d2d",
+            backgroundColor: "rgba(255,194,14,.35)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointBackgroundColor: "#e02d2d",
+          },
+        ],
+      },
+      options: {
+        ...chartOpciones(),
+        scales: {
+          ...chartOpciones().scales,
+          x: { title: { display: true, text: "Día del mes" } },
+        },
+      },
+    });
   }
 
   function renderTabla(filas) {
