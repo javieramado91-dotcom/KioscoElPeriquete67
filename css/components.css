@@ -221,6 +221,29 @@ input:focus, select:focus, textarea:focus {
   margin-right: 5px;
 }
 
+/* Botones para prender/apagar cada mes en el gráfico "mes típico". */
+.chips-meses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 14px;
+}
+.chip-mes {
+  border: 2px solid var(--c, #888);
+  color: var(--color-text);
+  background: transparent;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.chip-mes.activo {
+  background: var(--c, #888);
+  color: #fff;
+}
+
 /* ---------- TABLA ---------- */
 .table-card { padding: 8px; }
 .table-wrap { overflow-x: auto; }

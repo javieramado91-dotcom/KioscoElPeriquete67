@@ -103,9 +103,10 @@ const TEXTO_DIA = {
       <h3 class="section-title">Mes típico: promedio por día (comparación de meses)</h3>
       <p class="muted">
         La línea roja gruesa es el <strong>promedio de todos los meses</strong> del año:
-        te dice en qué parte del mes se vende más y en cuál menos. Tocá el nombre de un
-        mes en la referencia de abajo para compararlo con el promedio.
+        te dice en qué parte del mes se vende más y en cuál menos. Tocá un mes acá abajo
+        para dibujarlo encima y compararlo con el promedio.
       </p>
+      <div id="chipsMeses" class="chips-meses"></div>
       <canvas id="chartPromedio"></canvas>
     </section>
 
@@ -257,8 +258,9 @@ const TEXTO_DIA = {
       },
     ];
 
-    // Una línea fina por mes con datos, oculta por defecto (se activa desde
-    // la referencia de abajo tocando el nombre del mes).
+    // Una línea fina por mes con datos, oculta por defecto. Se prende/apaga
+    // con los botones táctiles de arriba (no con la referencia de Chart.js).
+    const meses = []; // { label, color, idx }
     for (let m = 0; m < 12; m++) {
       if (porMes[m].every((v) => v === null)) continue;
       const color = `hsl(${Math.round((m * 360) / 12)}, 70%, 52%)`;
@@ -267,13 +269,14 @@ const TEXTO_DIA = {
         data: porMes[m],
         borderColor: color,
         backgroundColor: color,
-        borderWidth: 1.5,
+        borderWidth: 2,
         pointRadius: 0,
         tension: 0.3,
         spanGaps: true,
         hidden: true, // arranca oculta; el promedio es lo que se ve primero
         order: 1,
       });
+      meses.push({ label: nombreMes(m), color, idx: datasets.length - 1 });
     }
 
     const ctx = document.getElementById("chartPromedio");
@@ -284,7 +287,7 @@ const TEXTO_DIA = {
       options: {
         ...chartOpciones(),
         plugins: {
-          legend: { display: true, position: "bottom" },
+          legend: { display: false }, // usamos botones propios, más táctiles
           tooltip: {
             callbacks: {
               title: (items) => `Día ${items[0].label} del mes`,
@@ -298,6 +301,29 @@ const TEXTO_DIA = {
           x: { title: { display: true, text: "Día del mes" } },
         },
       },
+    });
+
+    // Botones para prender/apagar cada mes sobre el promedio.
+    const chips = document.getElementById("chipsMeses");
+    chips.innerHTML = "";
+    if (!meses.length) {
+      chips.innerHTML =
+        '<span class="muted">Todavía no hay meses cargados en este año.</span>';
+      return;
+    }
+    meses.forEach(({ label, color, idx }) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip-mes";
+      btn.textContent = label;
+      btn.style.setProperty("--c", color);
+      btn.addEventListener("click", () => {
+        const visible = chartPromedio.isDatasetVisible(idx);
+        if (visible) chartPromedio.hide(idx);
+        else chartPromedio.show(idx);
+        btn.classList.toggle("activo", !visible);
+      });
+      chips.appendChild(btn);
     });
   }
 
